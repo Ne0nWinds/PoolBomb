@@ -6,15 +6,14 @@
 
 #include "game.h"
 
-static uint8_t *g_framebuffer_bgra;
-static uint8_t *g_framebuffer_rgba;
+static uint8_t *g_framebuffer;
 
 EM_JS(void, js_init_canvas, (int width, int height), {
 	var canvas = document.getElementById('canvas');
 	canvas.width = width;
 	canvas.height = height;
 	canvas.style.imageRendering = 'pixelated';
-	Module._ctx = canvas.getContext('2d');
+	Module._ctx = canvas.getContext('2d', { alpha: false });
 	Module._img = Module._ctx.createImageData(width, height);
 });
 
@@ -48,19 +47,31 @@ static bool RequestAnimationiFrameCallback(F64 time, void *data) {
 			g_remaining_time -= update_rate;
 			g_frame_index += 1;
 		} while (g_remaining_time >= update_rate);
-		js_blit((int)g_framebuffer_bgra, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
+
+		// swap bgra to rgba
+		U32 *framebuffer_color = (U32 *)g_framebuffer;
+		for (U32 y = 0; y < FRAME_BUFFER_HEIGHT; ++y) {
+			for (U32 x = 0; x < FRAME_BUFFER_WIDTH; ++x) {
+				U32 bgra_color = framebuffer_color[y * FRAME_BUFFER_WIDTH + x];
+				U32 r = (bgra_color >> 0u) & 0xFF;
+				U32 g = (bgra_color >> 8u) & 0xFF;
+				U32 b = (bgra_color >> 16u) & 0xFF;
+				U32 rgba_color = 0xFF000000 | (r << 16) | (g << 8) | (b);
+				framebuffer_color[y * FRAME_BUFFER_WIDTH + x] = rgba_color;
+			}
+		}
+		js_blit((int)g_framebuffer, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
 	}
 
 	return true;
 }
 
 int main(void) {
-	g_framebuffer_bgra = (uint8_t *)malloc(FRAME_BUFFER_WIDTH * FRAME_BUFFER_HEIGHT * 4);
-	g_framebuffer_rgba = (uint8_t *)malloc(FRAME_BUFFER_WIDTH * FRAME_BUFFER_HEIGHT * 4);
+	g_framebuffer = (uint8_t *)malloc(FRAME_BUFFER_WIDTH * FRAME_BUFFER_HEIGHT * 4);
 
 	js_init_canvas(FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
 
-	GameInit(g_framebuffer_bgra, FRAME_BUFFER_WIDTH * 4);
+	GameInit(g_framebuffer, FRAME_BUFFER_WIDTH * 4);
 
 	emscripten_request_animation_frame_loop(RequestAnimationiFrameCallback, NULL);
 }
