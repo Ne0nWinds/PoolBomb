@@ -13,9 +13,13 @@
 #define FRAME_BUFFER_HEIGHT 224
 #define SCALE 4
 
-static uint32_t *g_framebuffer;
+static U32 *g_framebuffer;
 static GLuint g_texture;
 static int g_running = 1;
+
+#define MAX_PLAYER_COUNT 4
+
+static GameInput g_player_inputs[MAX_PLAYER_COUNT];
 
 static LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 	switch (msg) {
@@ -103,18 +107,36 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 		counter1 = counter2;
 
 		if (remaining_time >= update_delta) {
+
+			{
+				Bool up_button =	(GetAsyncKeyState('W') & 0x8000) != 0;
+				Bool right_button = (GetAsyncKeyState('D') & 0x8000) != 0;
+				Bool down_button =	(GetAsyncKeyState('S') & 0x8000) != 0;
+				Bool left_button =	(GetAsyncKeyState('A') & 0x8000) != 0;
+
+				GameInput *player_one_input = &g_player_inputs[0];
+
+				player_one_input->previous_button_state = player_one_input->current_button_state;
+				player_one_input->current_button_state = 0;
+				player_one_input->current_button_state |= (BUTTON_UP * up_button);
+				player_one_input->current_button_state |= (BUTTON_RIGHT * right_button);
+				player_one_input->current_button_state |= (BUTTON_DOWN * down_button);
+				player_one_input->current_button_state |= (BUTTON_LEFT * left_button);
+			}
+
 			if (remaining_time > update_delta * 6) {
 				remaining_time = update_delta;
 			}
+
 			do {
 				frame_index += 1;
-				GameFrame(frame_index);
+				GameFrame(g_framebuffer, frame_index, g_player_inputs, 1);
 				remaining_time -= update_delta;
 			} while (remaining_time >= update_delta);
 		}
 
 		glBindTexture(GL_TEXTURE_2D, g_texture);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, 0, GL_BGRA, GL_UNSIGNED_BYTE, g_framebuffer);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, g_framebuffer);
 
 		glBegin(GL_QUADS);
 			glTexCoord2f(0, 0); glVertex2f(-1,  1);
