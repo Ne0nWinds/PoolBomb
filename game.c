@@ -83,7 +83,7 @@ void BlitBitmapRectangleToFramebufferReversedX(U32 *dst_frame_buffer, U32 dst_x,
 
 static Bitmap base_spriteset;
 
-#define MAX_RECT_COUNT (7*2 + 12*2)
+#define MAX_RECT_COUNT (128)
 static Rectangle g_animation_frames[MAX_RECT_COUNT];
 static WalkAnimation g_walk_animations[DIRECTION_COUNT];
 
@@ -102,6 +102,8 @@ void GameInit(U32 *frame_buffer, uint32_t pitch) {
 			.flip_x = False,
 		};
 
+		U32 animation_push_index_start = animation_push_index;
+
 		for (U32 i = 0; i < 4; ++i) {
 			g_animation_frames[animation_push_index].x =		8 + 48*i;
 			g_animation_frames[animation_push_index].y =		8 + 48*0;
@@ -110,23 +112,26 @@ void GameInit(U32 *frame_buffer, uint32_t pitch) {
 			animation_push_index += 1;
 		}
 
-		for (S32 i = 3; i > 0; --i) {
+		for (S32 i = 2; i > 0; --i) {
 			g_animation_frames[animation_push_index].x =		8 + 48*i;
 			g_animation_frames[animation_push_index].y =		8 + 48*0;
 			g_animation_frames[animation_push_index].width =	48;
 			g_animation_frames[animation_push_index].height =	48;
 			animation_push_index += 1;
 		}
+
+		g_walk_animations[DIRECTION_DOWN].frame_count = animation_push_index - animation_push_index_start;
 	}
 
 	{
 		g_walk_animations[DIRECTION_UP] = (WalkAnimation){
 			.base_rect = g_animation_frames + animation_push_index,
-			.frame_count = 7,
 			.neutral_frame = 7,
 			.mirror_feet = True,
 			.flip_x = False,
 		};
+
+		U32 animation_push_index_start = animation_push_index;
 
 		for (U32 i = 0; i < 4; ++i) {
 			g_animation_frames[animation_push_index].x =		8 + 48*i;
@@ -136,114 +141,119 @@ void GameInit(U32 *frame_buffer, uint32_t pitch) {
 			animation_push_index += 1;
 		}
 
-		for (S32 i = 3; i > 0; --i) {
+		for (S32 i = 2; i > 0; --i) {
 			g_animation_frames[animation_push_index].x =		8 + 48*i;
 			g_animation_frames[animation_push_index].y =		8 + 48*3;
 			g_animation_frames[animation_push_index].width =	48;
 			g_animation_frames[animation_push_index].height =	48;
 			animation_push_index += 1;
 		}
-	}
 
-#if 0
-	TLN_Init(FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, 1, 1, 1);
-
-	TLN_SetRenderTarget((uint8_t *)frame_buffer, (int)pitch);
-	TLN_SetBGColor(0x55, 0x55, 0x55);
-
-	{
-		g_walk_animations[DIRECTION_UP] =    (WalkAnimation){ 7, true, false, 7 };
-		g_walk_animations[DIRECTION_LEFT] =  (WalkAnimation){ 12, false, false, 0 };
-		g_walk_animations[DIRECTION_RIGHT] = (WalkAnimation){ 12, true, false, 7 };
-	}
-
-	TLN_Bitmap bitmap = TLN_LoadBitmap("assets/spriteset.png");
-
-	{
-		TLN_SpriteData frames[7];
-
-		U32 i = 0;
-		for (; i < 4; ++i) {
-			snprintf(frames[i].name, sizeof(frames[i].name), "walkdown%d", i + 1);
-			frames[i].x = 8 + 48*i;
-			frames[i].y = 8 + 48*0;
-			frames[i].w = 48;
-			frames[i].h = 48;
-		}
-
-		for (S32 j = 3; j > 0; --j, ++i) {
-			snprintf(frames[i].name, sizeof(frames[i].name), "walkdown%d", i + 1);
-			frames[i].x = 8 + 48*j;
-			frames[i].y = 8 + 48*0;
-			frames[i].w = 48;
-			frames[i].h = 48;
-		}
-
-		TLN_Spriteset character_animation = TLN_CreateSpriteset(bitmap, frames, ArrayLength(frames));
-		g_spritesets[DIRECTION_DOWN] = character_animation;
+		g_walk_animations[DIRECTION_UP].frame_count = animation_push_index - animation_push_index_start;
 	}
 
 	{
-		TLN_SpriteData frames[7];
+		g_walk_animations[DIRECTION_LEFT] = (WalkAnimation){
+			.base_rect = g_animation_frames + animation_push_index,
+			.neutral_frame = 7,
+			.mirror_feet = False,
+			.flip_x = True
+		};
 
-		U32 i = 0;
-		for (; i < 4; ++i) {
-			snprintf(frames[i].name, sizeof(frames[i].name), "walkup%d", i + 1);
-			frames[i].x = 8 + 48*i;
-			frames[i].y = 8 + 48*3;
-			frames[i].w = 48;
-			frames[i].h = 48;
+		U32 animation_push_index_start = animation_push_index;
+
+		for (U32 i = 0; i < 4; ++i) {
+			g_animation_frames[animation_push_index].x =		8 + 48*i;
+			g_animation_frames[animation_push_index].y =		8 + 48*1;
+			g_animation_frames[animation_push_index].width =	48;
+			g_animation_frames[animation_push_index].height =	48;
+			animation_push_index += 1;
 		}
 
-		for (S32 j = 3; j > 0; --j, ++i) {
-			snprintf(frames[i].name, sizeof(frames[i].name), "walkup%d", i + 1);
-			frames[i].x = 8 + 48*j;
-			frames[i].y = 8 + 48*3;
-			frames[i].w = 48;
-			frames[i].h = 48;
+		for (S32 i = 2; i > 0; --i) {
+			g_animation_frames[animation_push_index].x =		8 + 48*i;
+			g_animation_frames[animation_push_index].y =		8 + 48*1;
+			g_animation_frames[animation_push_index].width =	48;
+			g_animation_frames[animation_push_index].height =	48;
+			animation_push_index += 1;
 		}
 
-		TLN_Spriteset character_animation = TLN_CreateSpriteset(bitmap, frames, ArrayLength(frames));
-		g_spritesets[DIRECTION_UP] = character_animation;
+		for (U32 i = 0; i < 4; ++i) {
+			g_animation_frames[animation_push_index].x =		8 + 48*i;
+			g_animation_frames[animation_push_index].y =		8 + 48*2;
+			g_animation_frames[animation_push_index].width =	48;
+			g_animation_frames[animation_push_index].height =	48;
+			animation_push_index += 1;
+		}
+
+		for (S32 i = 2; i > 0; --i) {
+			g_animation_frames[animation_push_index].x =		8 + 48*i;
+			g_animation_frames[animation_push_index].y =		8 + 48*2;
+			g_animation_frames[animation_push_index].width =	48;
+			g_animation_frames[animation_push_index].height =	48;
+			animation_push_index += 1;
+		}
+
+		g_walk_animations[DIRECTION_LEFT].frame_count = animation_push_index - animation_push_index_start;
+
 	}
 
 	{
-		TLN_SpriteData frames[12];
+		g_walk_animations[DIRECTION_RIGHT] = (WalkAnimation){
+			.base_rect = g_animation_frames + animation_push_index,
+			.neutral_frame = 7,
+			.mirror_feet = False,
+			.flip_x = False
+		};
 
-		U32 i = 0;
-		for (; i < 4; ++i) {
-			snprintf(frames[i].name, sizeof(frames[i].name), "walkleft%d", i + 1);
-			frames[i].x = 8 + 48*i;
-			frames[i].y = 8 + 48*1;
-			frames[i].w = 48;
-			frames[i].h = 48;
+		U32 animation_push_index_start = animation_push_index;
+
+		for (U32 i = 0; i < 4; ++i) {
+			g_animation_frames[animation_push_index].x =		8 + 48*i;
+			g_animation_frames[animation_push_index].y =		8 + 48*1;
+			g_animation_frames[animation_push_index].width =	48;
+			g_animation_frames[animation_push_index].height =	48;
+			animation_push_index += 1;
 		}
-		for (S32 j = 2; j >= 0; --j, ++i) {
-			snprintf(frames[i].name, sizeof(frames[i].name), "walkleft%d", i + 1);
-			frames[i].x = 8 + 48*j;
-			frames[i].y = 8 + 48*1;
-			frames[i].w = 48;
-			frames[i].h = 48;
+
+		for (S32 i = 2; i > 0; --i) {
+			g_animation_frames[animation_push_index].x =		8 + 48*i;
+			g_animation_frames[animation_push_index].y =		8 + 48*1;
+			g_animation_frames[animation_push_index].width =	48;
+			g_animation_frames[animation_push_index].height =	48;
+			animation_push_index += 1;
 		}
-		for (U32 j = 0; j < 3; ++j, ++i) {
-			snprintf(frames[i].name, sizeof(frames[i].name), "walkleft%d", i + 1);
-			frames[i].x = 8 + 48*j;
-			frames[i].y = 8 + 48*2;
-			frames[i].w = 48;
-			frames[i].h = 48;
+
+		for (U32 i = 0; i < 4; ++i) {
+			g_animation_frames[animation_push_index].x =		8 + 48*i;
+			g_animation_frames[animation_push_index].y =		8 + 48*2;
+			g_animation_frames[animation_push_index].width =	48;
+			g_animation_frames[animation_push_index].height =	48;
+			animation_push_index += 1;
 		}
-		for (S32 j = 1; j >= 0; --j, ++i) {
-			snprintf(frames[i].name, sizeof(frames[i].name), "walkleft%d", i + 1);
-			frames[i].x = 8 + 48*j;
-			frames[i].y = 8 + 48*2;
-			frames[i].w = 48;
-			frames[i].h = 48;
+
+		for (S32 i = 2; i > 0; --i) {
+			g_animation_frames[animation_push_index].x =		8 + 48*i;
+			g_animation_frames[animation_push_index].y =		8 + 48*2;
+			g_animation_frames[animation_push_index].width =	48;
+			g_animation_frames[animation_push_index].height =	48;
+			animation_push_index += 1;
 		}
+
+		g_walk_animations[DIRECTION_RIGHT].frame_count = animation_push_index - animation_push_index_start;
+
 	}
+}
 
-	TLN_ConfigSprite(0, g_spritesets[0], 0);
-	TLN_SetSpritePosition(0, 128, 128);
-#endif
+void DisplayWalkAnimationSheet(U32 *frame_buffer, WalkAnimation *animation) {
+	U32 frame_count = animation->frame_count;
+	for (U32 i = 0; i < frame_count; ++i) {
+		Rectangle *rect = animation->base_rect + i;
+
+		U32 x_pos = i%4 * 48;
+		U32 y_pos = i/4 * 48;
+		BlitBitmapRectangleToFramebuffer(frame_buffer, x_pos, y_pos, base_spriteset, *rect);
+	}
 }
 
 void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs, U32 player_count) {
@@ -252,26 +262,28 @@ void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs
 
 	Bool down = IsButtonDown(player_inputs[0], BUTTON_DOWN);
 	Bool up = IsButtonDown(player_inputs[0], BUTTON_UP);
-#if 0
 	Bool left = IsButtonDown(player_inputs[0], BUTTON_LEFT);
 	Bool right = IsButtonDown(player_inputs[0], BUTTON_RIGHT);
-#else
-	Bool left = False;
-	Bool right = False;
-#endif
 
 	S32 y_movement = (S32)up - (S32)down;
 	S32 x_movement = (S32)right - (S32)left;
 
 	static Direction animation_direction = DIRECTION_DOWN;
+	static U32 player_animation_frame = 0;
 
 	if (y_movement != 0) {
+		if (animation_direction == DIRECTION_LEFT || animation_direction == DIRECTION_RIGHT) {
+			player_animation_frame = 0;
+		}
 		if (y_movement > 0) {
 			animation_direction = DIRECTION_UP;
 		} else {
 			animation_direction = DIRECTION_DOWN;
 		}
 	} else if (x_movement != 0) {
+		if (animation_direction == DIRECTION_UP || animation_direction == DIRECTION_DOWN) {
+			player_animation_frame = 0;
+		}
 		if (x_movement > 0) {
 			animation_direction = DIRECTION_RIGHT;
 		} else {
@@ -279,29 +291,23 @@ void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs
 		}
 	}
 
-	static U32 player_animation_frame = 0;
-
 	WalkAnimation animation = g_walk_animations[animation_direction];
-
-	Bool is_moving = x_movement != 0 || y_movement != 0;
-	if (is_moving) {
-		player_animation_frame += 1;
-	}
 
 	U32 animation_length = animation.frame_count;
 	if (animation.mirror_feet) {
 		animation_length *= 2;
 	}
-	U32 animation_index = (player_animation_frame / 4) % animation_length;
-	Bool mirror_feet = animation_index >= animation.frame_count;
 
+	Bool is_moving = x_movement != 0 || y_movement != 0;
+	U32 animation_index = (player_animation_frame / 4) % animation_length;
 	Bool animation_not_finished = animation_index != 0 && animation_index != animation.neutral_frame;
-	if (!is_moving && animation_not_finished) {
+
+	if (is_moving || animation_not_finished) {
 		player_animation_frame += 1;
 		animation_index = (player_animation_frame / 4) % animation_length;
-		animation_not_finished = animation_index != 0 && animation_index != animation.neutral_frame;
-		mirror_feet = animation_index >= animation.frame_count;
 	}
+
+	Bool mirror_feet = animation_index >= animation.frame_count;
 
 	Bool should_flip = animation.flip_x ^ mirror_feet;
 	if (mirror_feet) {
