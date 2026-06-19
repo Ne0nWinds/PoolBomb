@@ -37,6 +37,20 @@ static U32 g_keyboard_state = 0;
 static U32 g_gamepad_state = 0;
 static U32 g_previous_button_state = 0;
 
+static U32 g_ui_animation_speed = 4;
+static U32 g_ui_character_index = 0;
+
+EMSCRIPTEN_KEEPALIVE void SetAnimationSpeed(U32 frame_delay) {
+	if (frame_delay < 1) frame_delay = 1;
+	if (frame_delay > 6) frame_delay = 6;
+	g_ui_animation_speed = frame_delay;
+
+}
+
+EMSCRIPTEN_KEEPALIVE void SetCharacterIndex(U32 index) {
+	g_ui_character_index = index;
+}
+
 static EM_BOOL OnKeydown(int t, const EmscriptenKeyboardEvent *e, void *_) {
 	const char *code = e->code;
 
@@ -60,7 +74,7 @@ static EM_BOOL OnKeydown(int t, const EmscriptenKeyboardEvent *e, void *_) {
 		return EM_TRUE;
 	}
 
-	return EM_TRUE;
+	return EM_FALSE;
 }
 
 static EM_BOOL OnKeyUp(int t, const EmscriptenKeyboardEvent *e, void *_) {
@@ -86,7 +100,7 @@ static EM_BOOL OnKeyUp(int t, const EmscriptenKeyboardEvent *e, void *_) {
 		return EM_TRUE;
 	}
 
-	return EM_TRUE;
+	return EM_FALSE;
 }
 
 U32 ReadGamepadState(void) {
@@ -140,6 +154,8 @@ static bool RequestAnimationFrameCallback(F64 time, void *data) {
 		GameInput input = {0};
 		input.current_button_state = current_button_state;
 		input.previous_button_state = g_previous_button_state;
+		input.animation_speed = g_ui_animation_speed;
+		input.character_index = g_ui_character_index;
 
 		g_previous_button_state = current_button_state;
 		g_gamepad_state = 0;

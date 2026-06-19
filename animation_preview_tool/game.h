@@ -2,8 +2,8 @@
 #ifndef GAME_H
 #define GAME_H
 
-#define FRAME_BUFFER_WIDTH 256
-#define FRAME_BUFFER_HEIGHT 224
+#define FRAME_BUFFER_WIDTH 32
+#define FRAME_BUFFER_HEIGHT 32
 
 #include <stdint.h>
 
@@ -46,6 +46,8 @@ enum Button {
 typedef struct GameInput {
 	U32 current_button_state;
 	U32 previous_button_state;
+	U32 animation_speed;
+	U32 character_index;
 } GameInput;
 
 static inline Bool IsButtonDown(GameInput input, enum Button button) {

@@ -13,8 +13,7 @@ if ($win32) {
 		"-Wextra",
 		"-Wno-unused-parameter",
 		"-pedantic-errors",
-		"-Ilib/",
-		"-DTLN_STATIC"
+		"-Ilib/"
 	)
 
 	if ($optimize) {
@@ -44,7 +43,7 @@ if ($web) {
 		"-Wno-unused-parameter",
 		"-msimd128",
 		"-Ilib/",
-		"-DTLN_STATIC"
+		"-sINITIAL_MEMORY=16973824"
 	)
 
 	if ($optimize) {

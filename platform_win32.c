@@ -9,8 +9,6 @@
 #define GL_BGRA 0x80E1
 #endif
 
-#define FRAME_BUFFER_WIDTH 256
-#define FRAME_BUFFER_HEIGHT 224
 #define SCALE 4
 
 static U32 *g_framebuffer;
