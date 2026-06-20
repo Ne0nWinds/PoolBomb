@@ -80,7 +80,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 	SwapBuffers(hdc);
 	ShowWindow(hwnd, SW_SHOW);
 
-	GameInit(g_framebuffer, FRAME_BUFFER_WIDTH * 4);
+	GameInit();
 
 	LARGE_INTEGER frequency = {0}, counter1 = {0};
 	QueryPerformanceFrequency(&frequency);

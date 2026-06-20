@@ -26,7 +26,7 @@ typedef _Bool Bool;
 
 #define ArrayLength(arr) (sizeof(arr) / sizeof(arr[0]))
 
-void GameInit(U32 *frame_buffer, U32 *screen_width, U32 *screen_height);
+void GameInit(void);
 
 enum Button {
 	BUTTON_UP = 1u << 0u,

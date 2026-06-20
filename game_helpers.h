@@ -35,50 +35,88 @@ typedef struct WalkAnimation {
 	U32 *x_offsets;
 	U32 frame_count;
 	U32 neutral_frame;
+	U32 start_offset;
 	Bool mirror_feet;
 	Bool flip_x;
 } WalkAnimation;
 
-static void BlitBitmapRectangleToFramebuffer(U32 *dst_frame_buffer, U32 dst_x, U32 dst_y, Bitmap src_bitmap, Rectangle src_rectangle) {
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
 
-	const U32 height = src_rectangle.height;
-	const U32 width = src_rectangle.width;
+static Rectangle RectangleIntersection(Rectangle a, Rectangle b) {
+
+	S32 left = MAX(a.x, b.x);
+	S32 top = MAX(a.y, b.y);
+	S32 right = MIN(a.x + (S32)a.width, b.x + (S32)b.width);
+	S32 bottom = MIN(a.y + (S32)a.height, b.y + (S32)b.height);
+
+	if (right <= left || bottom <= top) {
+		return (Rectangle){0};
+	}
+
+	Rectangle result = {
+		.x = left - a.x,
+		.y = top - a.y,
+		.width = (U32)(right - left),
+		.height = (U32)(bottom - top)
+	};
+	return result;
+}
+
+static void BlitBitmapRectangleToFramebuffer(U32 *dst_frame_buffer, S32 dst_x, S32 dst_y, Bitmap src_bitmap, Rectangle src_rectangle) {
+
+	Rectangle frame_buffer = { 0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT };
+	Rectangle dst_rectangle = { dst_x, dst_y, src_rectangle.width, src_rectangle.height };
+	Rectangle clipped = RectangleIntersection(frame_buffer, dst_rectangle);
+
+	const U32 height = clipped.height;
+	const U32 width = clipped.width;
+
+	S32 clip_src_x = src_rectangle.x + clipped.x - dst_x;
+	S32 clip_src_y = src_rectangle.y + clipped.y - dst_y;
 
 	for (U32 y = 0; y < height; ++y) {
-		U32 *frame_buffer_line = &dst_frame_buffer[(dst_y + y) * FRAME_BUFFER_WIDTH + dst_x];
-		U32 *bitmap_line = &src_bitmap.pixels[(src_rectangle.y + y) * src_bitmap.width + src_rectangle.x];
+		U32 *dst_row = &dst_frame_buffer[(clipped.y + y) * FRAME_BUFFER_WIDTH + clipped.x];
+		U32 *src_row = &src_bitmap.pixels[(clip_src_y + y)*src_bitmap.width + clip_src_x];
 
 		for (U32 x = 0; x < width; ++x) {
-			U32 pixel = bitmap_line[x];
-			U32 alpha = pixel >> 24;
+			U32 pixel = src_row[x];
+			U32 alpha = pixel >> 24u;
 			if (alpha != 0) {
-				frame_buffer_line[x] = pixel | 0xFF000000;
+				dst_row[x] = pixel | 0xFF000000;
 			}
 		}
 	}
 }
 
-static void BlitBitmapRectangleToFramebufferReversedX(U32 *dst_frame_buffer, U32 dst_x, U32 dst_y, Bitmap src_bitmap, Rectangle src_rectangle) {
+static void BlitBitmapRectangleToFramebufferReversedX(U32 *dst_frame_buffer, S32 dst_x, S32 dst_y, Bitmap src_bitmap, Rectangle src_rectangle) {
 
-	const U32 height = src_rectangle.height;
-	const U32 width = src_rectangle.width;
+	Rectangle frame_buffer = { 0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT };
+	Rectangle dst_rectangle = { dst_x, dst_y, src_rectangle.width, src_rectangle.height };
+	Rectangle clipped = RectangleIntersection(frame_buffer, dst_rectangle);
+
+	const U32 height = clipped.height;
+	const U32 width = clipped.width;
+
+	S32 clip_src_x = src_rectangle.x + clipped.x - dst_x;
+	S32 clip_src_y = src_rectangle.y + clipped.y - dst_y;
 
 	for (U32 y = 0; y < height; ++y) {
-		U32 *frame_buffer_line = &dst_frame_buffer[(dst_y + y) * FRAME_BUFFER_WIDTH + dst_x];
-		U32 *bitmap_line = &src_bitmap.pixels[(src_rectangle.y + y) * src_bitmap.width + (src_rectangle.x + width - 1)];
+		U32 *dst_row = &dst_frame_buffer[(clipped.y + y) * FRAME_BUFFER_WIDTH + clipped.x];
+		U32 *src_row = &src_bitmap.pixels[(clip_src_y + y)*src_bitmap.width + (clip_src_x + width - 1)];
 
 		for (U32 x = 0; x < width; ++x) {
-			U32 pixel = *(bitmap_line - x);
-			U32 alpha = pixel >> 24;
+			U32 pixel = *(src_row - x);
+			U32 alpha = pixel >> 24u;
 			if (alpha != 0) {
-				frame_buffer_line[x] = pixel | 0xFF000000;
+				dst_row[x] = pixel | 0xFF000000;
 			}
 		}
 	}
 }
 
 
-static void AdvanceAndDisplayPlayerAnimationWalkCycle(U32 *frame_buffer, WalkAnimation *walk_animations, Bitmap spriteset, U32 character_index, U32 *animation_frame, Direction animation_direction, S32 x_movement, S32 y_movement, U32 animation_frame_delay) {
+static void AdvanceAndDisplayPlayerAnimationWalkCycle(U32 *frame_buffer, WalkAnimation *walk_animations, Bitmap spriteset, U32 character_index, U32 *animation_frame, Direction animation_direction, S32 x_movement, S32 y_movement, S32 previous_x_movement, S32 previous_y_movement, S32 player_x, S32 player_y, U32 animation_frame_delay) {
 
 	WalkAnimation animation = walk_animations[animation_direction];
 
@@ -88,11 +126,29 @@ static void AdvanceAndDisplayPlayerAnimationWalkCycle(U32 *frame_buffer, WalkAni
 	}
 
 	Bool is_moving = x_movement != 0 || y_movement != 0;
+	Bool started_moving = is_moving && (previous_x_movement == 0 && previous_y_movement == 0);
+
+	if (started_moving) {
+		*animation_frame += animation.start_offset;
+	}
+
 	U32 animation_index = (*animation_frame / animation_frame_delay) % animation_length;
 	Bool animation_not_finished = animation_index != 0 && animation_index != animation.neutral_frame;
 
-	if (is_moving || animation_not_finished) {
+	if (is_moving) {
 		*animation_frame += 1;
+	} else if (animation_not_finished) {
+		U32 behind = (animation_index <= animation.neutral_frame) ? 0 : animation.neutral_frame;
+		U32 ahead = (animation_index < animation.neutral_frame) ? animation.neutral_frame : animation_length;
+		Bool should_reverse = (animation_index - behind) <= (ahead - animation_index);
+
+		if (should_reverse) {
+			// *animation_frame -= (animation_index - behind > 1) ? 2 : 1;
+			*animation_frame -= 1;
+		} else {
+			// *animation_frame += (ahead - animation_index > 1) ? 2 : 1;
+			*animation_frame += 1;
+		}
 	}
 
 	Bool mirror_feet = animation_index >= animation.frame_count;
@@ -110,9 +166,9 @@ static void AdvanceAndDisplayPlayerAnimationWalkCycle(U32 *frame_buffer, WalkAni
 	};
 
 	if (should_flip) {
-		BlitBitmapRectangleToFramebufferReversedX(frame_buffer, 0, 0, spriteset, sprite_rect);
+		BlitBitmapRectangleToFramebufferReversedX(frame_buffer, player_x, player_y, spriteset, sprite_rect);
 	} else {
-		BlitBitmapRectangleToFramebuffer(frame_buffer, 0, 0, spriteset, sprite_rect);
+		BlitBitmapRectangleToFramebuffer(frame_buffer, player_x, player_y, spriteset, sprite_rect);
 	}
 }
 
@@ -124,7 +180,8 @@ static void SetupWalkAnimations(WalkAnimation *walk_animations, U32 *animation_x
 		WalkAnimation down_animation = {
 			.x_offsets = animation_x_offsets + animation_push_index,
 			.frame_count = 0,
-			.neutral_frame = 7,
+			.neutral_frame = 6,
+			.start_offset = 6,
 			.mirror_feet = False,
 			.flip_x = False
 		};
@@ -158,6 +215,7 @@ static void SetupWalkAnimations(WalkAnimation *walk_animations, U32 *animation_x
 		WalkAnimation up_animation = {
 			.x_offsets = animation_x_offsets + animation_push_index,
 			.frame_count = 0,
+			.start_offset = 8,
 			.neutral_frame = 7,
 			.mirror_feet = True,
 			.flip_x = False

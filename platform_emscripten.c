@@ -25,10 +25,6 @@ EM_JS(void, js_blit, (void *ptr, int w, int h), {
 	Module._ctx.putImageData(Module._img, 0, 0);
 });
 
-
-static U32 frame_buffer_width = 0;
-static U32 frame_buffer_height = 0;
-
 static F64 g_last_time = 0;
 static F64 g_remaining_time = 0;
 static U64 g_frame_index = 0;
@@ -60,7 +56,7 @@ static EM_BOOL OnKeydown(int t, const EmscriptenKeyboardEvent *e, void *_) {
 		return EM_TRUE;
 	}
 
-	return EM_TRUE;
+	return EM_FALSE;
 }
 
 static EM_BOOL OnKeyUp(int t, const EmscriptenKeyboardEvent *e, void *_) {
@@ -86,7 +82,7 @@ static EM_BOOL OnKeyUp(int t, const EmscriptenKeyboardEvent *e, void *_) {
 		return EM_TRUE;
 	}
 
-	return EM_TRUE;
+	return EM_FALSE;
 }
 
 U32 ReadGamepadState(void) {
@@ -151,17 +147,17 @@ static bool RequestAnimationFrameCallback(F64 time, void *data) {
 			g_frame_index += 1;
 		} while (g_remaining_time >= update_rate);
 
-		js_blit((void *)g_framebuffer, frame_buffer_width, frame_buffer_height);
+		js_blit((void *)g_framebuffer, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
 	}
 
 	return true;
 }
 
 int main(void) {
-	GameInit(g_framebuffer, &frame_buffer_width, &frame_buffer_height);
+	g_framebuffer = (U32 *)malloc(FRAME_BUFFER_WIDTH*FRAME_BUFFER_HEIGHT * 4);
+	js_init_canvas(FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
 
-	g_framebuffer = (U32 *)malloc(frame_buffer_width * frame_buffer_height * 4);
-	js_init_canvas(frame_buffer_width, frame_buffer_height);
+	GameInit();
 
 	emscripten_request_animation_frame_loop(RequestAnimationFrameCallback, NULL);
 	emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, NULL, EM_TRUE, OnKeydown);
