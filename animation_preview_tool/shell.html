@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>PoolBomb — Animation Preview</title>
+	<title>Animation Preview</title>
 	<style>
 		html, body {
 			margin: 0;
@@ -119,7 +119,7 @@
 		}
 		.hint {
 			font-size: 13px;
-			color: #888;
+			color: #AAA;
 			text-align: center;
 		}
 		kbd {
@@ -156,7 +156,22 @@
 		</div>
 
 		<div class="row">
-			<label for="speed-slider">Animation speed &mdash; frame delay (top) / FPS (bottom)</label>
+			<label for="animation-select">Animation</label>
+			<select id="animation-select">
+				<option value="0">WASD Control Mode</option>
+				<option value="1">Walk Up</option>
+				<option value="2">Walk Right</option>
+				<option value="3">Walk Down</option>
+				<option value="4">Walk Left</option>
+				<option value="5">Death Animation</option>
+			</select>
+			<div class="hint" id="space-bar-animation-hint" style="display:none;">
+				Press the space bar to trigger death animation
+			</div>
+		</div>
+
+		<div class="row">
+			<label for="speed-slider">Animation speed</label>
 			<div class="ticks">
 				<span class="end" style="left:0%">6</span>
 				<span style="left:20%">5</span>
@@ -178,34 +193,39 @@
 		</div>
 
 		<div class="hint">
-			Move with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / arrows.
 			Drag a PNG spriteset onto the page to hot-reload it.
 		</div>
+
 	</div>
 
 	<div id="dropzone">Drop a spriteset PNG to preview it</div>
 
 	<script>
+		const speedSlider = document.getElementById('speed-slider');
+		const characterSelect = document.getElementById('character-select');
+		const animationSelect = document.getElementById('animation-select');
+		const spaceBarHint = document.getElementById('space-bar-animation-hint');
+
 		window.onSpritesetLoaded = function (count) {
-			const select = document.getElementById('character-select');
-			const previous = parseInt(select.value || '0', 10);
-			select.innerHTML = '';
+			const previous = parseInt(characterSelect.value || '0', 10);
+			characterSelect.innerHTML = '';
 			for (let i = 0; i < count; i++) {
 				const option = document.createElement('option');
 				option.value = i;
 				option.textContent = 'Character ' + i;
-				select.appendChild(option);
+				characterSelect.appendChild(option);
 			}
 			const index = (previous >= 0 && previous < count) ? previous : 0;
-			select.value = index;
+			characterSelect.value = index;
 			if (typeof Module !== 'undefined' && Module._SetCharacterIndex) {
 				Module._SetCharacterIndex(index);
 			}
 			applySpeed();
+			setAnimationMode();
 		};
 
 		function applySpeed() {
-			const frameDelay = parseInt(document.getElementById('speed-slider').value, 10);
+			const frameDelay = parseInt(speedSlider.value, 10);
 			const fps = Math.round(60 / frameDelay);
 			document.getElementById('speed-readout').textContent =
 				'frame delay ' + frameDelay + '  ·  ' + fps + ' FPS';
@@ -214,12 +234,30 @@
 			}
 		}
 
-		document.getElementById('character-select').addEventListener('change', function (e) {
+		function setAnimationMode() {
+			const animationMode = parseInt(animationSelect.value);
+			spaceBarHint.style.display = (animationMode == 5) ? 'block' : 'none';
+
+			if (typeof Module !== 'undefined' && Module._SetAnimationMode) {
+				Module._SetAnimationMode(animationMode);
+			}
+		}
+		animationSelect.addEventListener('change', setAnimationMode);
+
+		characterSelect.addEventListener('change', function (e) {
 			if (typeof Module !== 'undefined' && Module._SetCharacterIndex) {
 				Module._SetCharacterIndex(parseInt(e.target.value, 10));
 			}
 		});
-		document.getElementById('speed-slider').addEventListener('input', applySpeed);
+		speedSlider.addEventListener('input', applySpeed);
+
+		window.addEventListener('keyup', (e) => {
+			const keyCode = e.keyCode;
+			if (keyCode >= 49 && keyCode <= 54) {
+				speedSlider.value = keyCode - 48;
+				applySpeed();
+			}
+		});
 
 		const overlay = document.getElementById('dropzone');
 		let dragDepth = 0;

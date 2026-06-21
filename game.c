@@ -5,6 +5,11 @@
 #include <string.h>
 
 static Bitmap base_spriteset;
+static Bitmap tiles;
+
+static U8 level[] = {
+	#include "levels/test.csv"
+};
 
 static U32 g_animation_x_offsets[64];
 static WalkAnimation g_walk_animations[DIRECTION_COUNT];
@@ -12,6 +17,7 @@ static WalkAnimation g_walk_animations[DIRECTION_COUNT];
 void GameInit(void) {
 
 	base_spriteset = LoadBitmap("assets/spriteset.png");
+	tiles = LoadBitmap("assets/tiles.png");
 
 	SetupWalkAnimations(g_walk_animations, g_animation_x_offsets);
 }
@@ -36,9 +42,23 @@ static void DisplayWalkAnimationSheet(U32 *frame_buffer, Bitmap spriteset, WalkA
 
 void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs, U32 player_count) {
 
-	memset(frame_buffer, 0xFF, sizeof(U32)*FRAME_BUFFER_WIDTH*FRAME_BUFFER_HEIGHT);
+	memset(frame_buffer, 0x0, sizeof(U32)*FRAME_BUFFER_WIDTH*FRAME_BUFFER_HEIGHT);
 
 	// DisplayWalkAnimationSheet(frame_buffer, base_spriteset, &g_walk_animations[DIRECTION_DOWN]);
+
+	for (U32 y = 0; y < 10; ++y) {
+		for (U32 x = 0; x < 17; ++x) {
+			U8 tile_sprite_lookup = level[y*17 + x];
+
+			Rectangle rect = {
+				.x = (tile_sprite_lookup % 7) * 16,
+				.y = (tile_sprite_lookup / 7) * 16,
+				.width = 16,
+				.height = 16,
+			};
+			BlitBitmapRectangleToFramebuffer(frame_buffer, (S32)x*16 - 24, y*16, tiles, rect);
+		}
+	}
 
 	Bool down = IsButtonDown(player_inputs[0], BUTTON_DOWN);
 	Bool up = IsButtonDown(player_inputs[0], BUTTON_UP);
@@ -56,24 +76,25 @@ void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs
 	static S32 player_y = 0;
 	static S32 player_x = 0;
 
+	Direction next_animation_direction = DIRECTION_DOWN;
 	if (y_movement != 0) {
-		if (animation_direction == DIRECTION_LEFT || animation_direction == DIRECTION_RIGHT) {
-			player_animation_frame = 0;
-		}
 		if (y_movement > 0) {
-			animation_direction = DIRECTION_UP;
+			next_animation_direction = DIRECTION_UP;
 		} else {
-			animation_direction = DIRECTION_DOWN;
+			next_animation_direction = DIRECTION_DOWN;
 		}
 	} else if (x_movement != 0) {
-		if (animation_direction == DIRECTION_UP || animation_direction == DIRECTION_DOWN) {
+		if (x_movement > 0) {
+			next_animation_direction = DIRECTION_RIGHT;
+		} else {
+			next_animation_direction = DIRECTION_LEFT;
+		}
+	}
+	if (y_movement != 0 || x_movement != 0) {
+		if (animation_direction != next_animation_direction) {
 			player_animation_frame = 0;
 		}
-		if (x_movement > 0) {
-			animation_direction = DIRECTION_RIGHT;
-		} else {
-			animation_direction = DIRECTION_LEFT;
-		}
+		animation_direction = next_animation_direction;
 	}
 
 	player_y -= y_movement;

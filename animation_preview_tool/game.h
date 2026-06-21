@@ -73,6 +73,4 @@ static inline Bool WasButtonReleased(GameInput input, enum Button button) {
 
 void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs, U32 player_count);
 
-void GameExit(void);
-
 #endif

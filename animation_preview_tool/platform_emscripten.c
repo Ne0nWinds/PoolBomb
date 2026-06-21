@@ -74,6 +74,11 @@ static EM_BOOL OnKeydown(int t, const EmscriptenKeyboardEvent *e, void *_) {
 		return EM_TRUE;
 	}
 
+	if (!strcmp(code, "Space")) {
+		g_keyboard_state |= BUTTON_A;
+		return EM_TRUE;
+	}
+
 	return EM_FALSE;
 }
 
@@ -97,6 +102,11 @@ static EM_BOOL OnKeyUp(int t, const EmscriptenKeyboardEvent *e, void *_) {
 
 	if (!strcmp(code, "ArrowRight") || !strcmp(code, "KeyD")) {
 		g_keyboard_state &= ~(BUTTON_RIGHT);
+		return EM_TRUE;
+	}
+
+	if (!strcmp(code, "Space")) {
+		g_keyboard_state &= ~(BUTTON_A);
 		return EM_TRUE;
 	}
 

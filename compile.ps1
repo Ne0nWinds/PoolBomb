@@ -32,7 +32,9 @@ if ($win32) {
 	clang @cf platform_win32.c game.c $engineLibWin @lf -o build/PoolBomb.exe
 	if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-	Copy-Item -Path assets -Destination build/assets -Recurse -Force
+	rm -Recurse -Force build/assets
+	mkdir build/assets
+	Copy-Item -Path assets/* -Destination build/assets -Recurse -Force
 }
 
 if ($web) {
