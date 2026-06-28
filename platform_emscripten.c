@@ -12,10 +12,8 @@
 static U32 *g_framebuffer;
 
 EM_JS(void, js_init_canvas, (int width, int height), {
-	var canvas = document.getElementById('canvas');
 	canvas.width = width;
 	canvas.height = height;
-	canvas.style.imageRendering = 'pixelated';
 	Module._ctx = canvas.getContext('2d', { alpha: false });
 	Module._img = Module._ctx.createImageData(width, height);
 });

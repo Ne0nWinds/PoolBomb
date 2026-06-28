@@ -31,6 +31,11 @@ typedef struct Rectangle {
 	U32 width, height;
 } Rectangle;
 
+typedef struct BasicAnimation {
+	U32 *x_offsets;
+	U32 frame_count;
+} BasicAnimation;
+
 typedef struct WalkAnimation {
 	U32 *x_offsets;
 	U32 frame_count;
@@ -87,6 +92,21 @@ static void BlitBitmapRectangleToFramebuffer(U32 *dst_frame_buffer, S32 dst_x, S
 	}
 }
 
+static void BlitColorRectangleToFramebuffer(U32 *dst_frame_buffer, Rectangle dst_rect, U32 color) {
+	Rectangle frame_buffer = { 0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT };
+	Rectangle clipped = RectangleIntersection(frame_buffer, dst_rect);
+
+	const U32 height = clipped.height;
+	const U32 width = clipped.width;
+
+	for (U32 y = 0; y < height; ++y) {
+		U32 *dst_row = &dst_frame_buffer[(clipped.y + y)*FRAME_BUFFER_WIDTH + clipped.x];
+		for (U32 x = 0; x < width; ++x) {
+			dst_row[x] = color;
+		}
+	}
+}
+
 static void BlitBitmapRectangleToFramebufferReversedX(U32 *dst_frame_buffer, S32 dst_x, S32 dst_y, Bitmap src_bitmap, Rectangle src_rectangle) {
 
 	Rectangle frame_buffer = { 0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT };
@@ -114,6 +134,43 @@ static void BlitBitmapRectangleToFramebufferReversedX(U32 *dst_frame_buffer, S32
 	}
 }
 
+typedef struct {
+	U32 animation_render_index;
+	U32 global_animation_tick;
+	Bool animation_ended;
+	Bool animation_will_end_next_tick;
+} AnimationState;
+
+static AnimationState AdvanceBasicAnimation(BasicAnimation animation, U32 frame_delay, U32 animation_tick) {
+
+	U32 animation_index = (animation_tick / frame_delay) % animation.frame_count;
+
+	AnimationState result = {
+		.animation_render_index = animation_index,
+		.global_animation_tick = animation_tick + 1,
+	};
+
+	U32 animation_progress = animation_tick % (animation.frame_count * frame_delay);
+	if (animation_tick != 0 && animation_progress == 0) {
+		result.animation_ended = True;
+	}
+	if (animation_progress == animation.frame_count * frame_delay - 1) {
+		result.animation_will_end_next_tick = True;
+	}
+	return result;
+}
+
+static void DisplayAnimationFrame(U32 *frame_buffer, U32 *x_offsets, Bitmap spriteset, U32 character_index, U32 animation_render_index, S32 x, S32 y) {
+
+	Rectangle sprite_rect = {
+		.x = x_offsets[animation_render_index],
+		.y = 16 + 48*character_index,
+		.width = 32,
+		.height = 32
+	};
+
+	BlitBitmapRectangleToFramebuffer(frame_buffer, x, y, spriteset, sprite_rect);
+}
 
 static void AdvanceAndDisplayPlayerAnimationWalkCycle(U32 *frame_buffer, WalkAnimation *walk_animations, Bitmap spriteset, U32 character_index, U32 *animation_frame, Direction animation_direction, S32 x_movement, S32 y_movement, S32 previous_x_movement, S32 previous_y_movement, S32 player_x, S32 player_y, U32 animation_frame_delay) {
 
@@ -164,7 +221,17 @@ static void AdvanceAndDisplayPlayerAnimationWalkCycle(U32 *frame_buffer, WalkAni
 	BlitBitmapRectangleToFramebuffer(frame_buffer, player_x, player_y, spriteset, sprite_rect);
 }
 
-static void SetupWalkAnimations(WalkAnimation *walk_animations, U32 *animation_x_offsets) {
+static void SetupDeathAnimation(BasicAnimation *death_animation, U32 *animation_x_offsets) {
+
+	death_animation->x_offsets = animation_x_offsets;
+	death_animation->frame_count = 9;
+
+	for (U32 i = 0; i < 9; ++i) {
+		animation_x_offsets[i] = 16 + (i+29)*48;
+	}
+}
+
+static U32 SetupWalkAnimations(WalkAnimation *walk_animations, U32 *animation_x_offsets) {
 
 	U32 animation_push_index = 0;
 
@@ -300,4 +367,6 @@ static void SetupWalkAnimations(WalkAnimation *walk_animations, U32 *animation_x
 		left_animation.frame_count = animation_push_index - animation_push_index_start;
 		walk_animations[DIRECTION_LEFT] = left_animation;
 	}
+
+	return animation_push_index;
 }

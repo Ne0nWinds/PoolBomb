@@ -3,7 +3,7 @@
 #define GAME_H
 
 #define FRAME_BUFFER_WIDTH 256
-#define FRAME_BUFFER_HEIGHT 224
+#define FRAME_BUFFER_HEIGHT 192
 
 #include <stdint.h>
 
