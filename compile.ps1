@@ -12,6 +12,7 @@ if ($win32) {
 		"-Wall",
 		"-Wextra",
 		"-Wno-unused-parameter",
+		"-Wno-unused-function",
 		"-pedantic-errors",
 		"-Ilib/"
 	)
@@ -43,6 +44,7 @@ if ($web) {
 		"-Wall",
 		"-Wextra",
 		"-Wno-unused-parameter",
+		"-Wno-unused-function",
 		"-msimd128",
 		"-Ilib/",
 		"-sINITIAL_MEMORY=16973824"

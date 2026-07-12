@@ -172,14 +172,13 @@ static void DisplayAnimationFrame(U32 *frame_buffer, U32 *x_offsets, Bitmap spri
 	BlitBitmapRectangleToFramebuffer(frame_buffer, x, y, spriteset, sprite_rect);
 }
 
-static void AdvanceAndDisplayPlayerAnimationWalkCycle(U32 *frame_buffer, WalkAnimation *walk_animations, Bitmap spriteset, U32 character_index, U32 *animation_frame, Direction animation_direction, S32 x_movement, S32 y_movement, S32 previous_x_movement, S32 previous_y_movement, S32 player_x, S32 player_y, U32 animation_frame_delay) {
+static void AdvanceAndDisplayPlayerAnimationWalkCycle(U32 *frame_buffer, WalkAnimation *walk_animations, Bitmap spriteset, U32 character_index, U32 *animation_frame, Direction animation_direction, Bool is_moving, Bool was_moving_last_frame, S32 player_x, S32 player_y, U32 animation_frame_delay) {
 
 	WalkAnimation animation = walk_animations[animation_direction];
 
 	U32 animation_length = animation.frame_count;
 
-	Bool is_moving = x_movement != 0 || y_movement != 0;
-	Bool started_moving = is_moving && (previous_x_movement == 0 && previous_y_movement == 0);
+	Bool started_moving = is_moving && (!was_moving_last_frame);
 
 	if (started_moving) {
 		*animation_frame += animation.start_offset * animation_frame_delay;
@@ -369,4 +368,47 @@ static U32 SetupWalkAnimations(WalkAnimation *walk_animations, U32 *animation_x_
 	}
 
 	return animation_push_index;
+}
+
+#define SUBPIXEL_BITS 8
+#define TILE_PIXEL_BITS 4
+#define TILE_BITS (SUBPIXEL_BITS + TILE_PIXEL_BITS)
+
+#define SUBPIXELS_PER_PIXEL (1 << SUBPIXEL_BITS)
+#define TILE_SIZE_IN_PIXELS (1 << TILE_PIXEL_BITS)
+#define SUBPIXELS_PER_TILE  (1 << TILE_BITS)
+
+#define WORLD_ORIGIN 16
+
+static inline S32 WorldToPixel(S32 world_coordinate) {
+	S32 result = (world_coordinate >> SUBPIXEL_BITS) + WORLD_ORIGIN;
+	return result;
+}
+
+static inline S32 PixelToWorld(S32 pixel_coordinate) {
+	S32 offset_coordinate = pixel_coordinate - WORLD_ORIGIN;
+	S32 result = offset_coordinate << SUBPIXEL_BITS;
+	return result;
+}
+
+static inline S32 WorldToTile(S32 world_coordinate) {
+	S32 offset_coordinate = (world_coordinate + SUBPIXELS_PER_TILE/2);
+	S32 result = (offset_coordinate >> TILE_BITS) + 1;
+	return result;
+}
+
+static inline S32 TileToWorld(S32 tile_coordinate) {
+	S32 result = (tile_coordinate - 1) << TILE_BITS;
+	return result;
+}
+
+static inline S32 TileToPixel(S32 tile_coordinate) {
+	S32 result = ((tile_coordinate - 1) << TILE_PIXEL_BITS) + WORLD_ORIGIN;
+	return result;
+}
+
+static inline S32 PixelToTile(S32 pixel_coordinate) {
+	S32 result = (pixel_coordinate - WORLD_ORIGIN + (TILE_SIZE_IN_PIXELS / 2)) >> TILE_PIXEL_BITS;
+	result += 1;
+	return result;
 }

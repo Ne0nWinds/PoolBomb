@@ -15,20 +15,15 @@
 			align-items: center;
 			justify-content: center;
 		}
-		/* Backing-store size is set from C (256x224); scale up the display
-		   with nearest-neighbour so pixels stay crisp. */
 		#canvas {
 			image-rendering: pixelated;
 			width: 768px;
-			height: 672px;
+			height: 576px;
 		}
 	</style>
 </head>
 <body>
 	<canvas id="canvas"></canvas>
-
-	<!-- emcc replaces this with the <script> tag that loads PoolBomb.js,
-	     which in turn fetches PoolBomb.wasm and runs main(). -->
 	{{{ SCRIPT }}}
 </body>
 </html>
