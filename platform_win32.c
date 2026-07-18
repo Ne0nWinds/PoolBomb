@@ -126,11 +126,15 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 				remaining_time = update_delta;
 			}
 
-			do {
-				frame_index += 1;
-				GameFrame(g_framebuffer, frame_index, g_player_inputs, 1);
-				remaining_time -= update_delta;
-			} while (remaining_time >= update_delta);
+			if (remaining_time >= update_delta) {
+				do {
+					frame_index += 1;
+					GameFrame(g_framebuffer, frame_index, g_player_inputs, 1);
+					remaining_time -= update_delta;
+				} while (remaining_time >= update_delta);
+
+				GameRender(g_framebuffer);
+			}
 		}
 
 		glBindTexture(GL_TEXTURE_2D, g_texture);
@@ -145,8 +149,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
 		SwapBuffers(hdc);
 	}
-
-	GameExit();
 
 	ExitProcess(0);
 }

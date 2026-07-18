@@ -412,3 +412,4 @@ static inline S32 PixelToTile(S32 pixel_coordinate) {
 	result += 1;
 	return result;
 }
+

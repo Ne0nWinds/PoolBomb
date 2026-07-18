@@ -138,12 +138,21 @@ static bool RequestAnimationFrameCallback(F64 time, void *data) {
 		g_previous_button_state = current_button_state;
 		g_gamepad_state = 0;
 
-		do {
-			GameFrame(g_framebuffer, g_frame_index, &input, 1);
-			input.previous_button_state = input.current_button_state;
-			g_remaining_time -= update_rate;
-			g_frame_index += 1;
-		} while (g_remaining_time >= update_rate);
+		if (g_remaining_time > update_rate*6) {
+			g_remaining_time = update_rate;
+		}
+
+		if (g_remaining_time >= update_rate) {
+
+			do {
+				GameFrame(g_framebuffer, g_frame_index, &input, 1);
+				input.previous_button_state = input.current_button_state;
+				g_remaining_time -= update_rate;
+				g_frame_index += 1;
+			} while (g_remaining_time >= update_rate);
+
+			GameRender(g_framebuffer);
+		}
 
 		js_blit((void *)g_framebuffer, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
 	}

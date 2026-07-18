@@ -11,6 +11,11 @@ static U8 level[] = {
 	#include "levels/test.csv"
 };
 
+static S32 S32_Abs(S32 a) {
+	if (a < 0) a = -a;
+	return a;
+}
+
 static U32 g_animation_x_offsets[64];
 static WalkAnimation g_walk_animations[DIRECTION_COUNT];
 
@@ -39,46 +44,28 @@ static void DisplayWalkAnimationSheet(U32 *frame_buffer, Bitmap spriteset, WalkA
 	}
 }
 
+static const S32 move_speed = 160+16;
+
+static S64 player_y = 0 * 256;
+static S64 player_x = 0 * 256;
+static S32 previous_x_movement = 0;
+static S32 previous_y_movement = 0;
+
+static Direction animation_direction = DIRECTION_DOWN;
+static U32 player_animation_frame = 0;
+
+static S32 y_movement = 0;
+static S32 x_movement = 0;
 
 void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs, U32 player_count) {
-
-	memset(frame_buffer, 0x0, sizeof(U32)*FRAME_BUFFER_WIDTH*FRAME_BUFFER_HEIGHT);
-
-	for (U32 y = 0; y < 13; ++y) {
-		for (U32 x = 0; x < 17; ++x) {
-			U8 tile_sprite_lookup = level[y*17 + x];
-
-			Rectangle rect = {
-				.x = (tile_sprite_lookup % 7) * 16,
-				.y = (tile_sprite_lookup / 7) * 16,
-				.width = 16,
-				.height = 16,
-			};
-
-			BlitBitmapRectangleToFramebuffer(frame_buffer, (S32)x*16-8, (S32)y*16-8, tiles, rect);
-		}
-	}
 
 	Bool down = IsButtonDown(player_inputs[0], BUTTON_DOWN);
 	Bool up = IsButtonDown(player_inputs[0], BUTTON_UP);
 	Bool left = IsButtonDown(player_inputs[0], BUTTON_LEFT);
 	Bool right = IsButtonDown(player_inputs[0], BUTTON_RIGHT);
 
-	static S32 previous_x_movement = 0;
-	static S32 previous_y_movement = 0;
-
-	S32 y_movement = (S32)down - (S32)up;
-	S32 x_movement = (S32)right - (S32)left;
-
-	static const S32 shadow_half_width = 7 * 256;
-	static const S32 shadow_half_height = 3 * 256;
-	static const S32 move_speed = 128;
-
-	static S64 player_y = 0 * 256;
-	static S64 player_x = 0 * 256;
-
-	Bool x_collision = False;
-	Bool y_collision = False;
+	y_movement = (S32)down - (S32)up;
+	x_movement = (S32)right - (S32)left;
 
 	{
 		S32 player_tile_x = WorldToTile(player_x);
@@ -99,46 +86,137 @@ void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs
 		Bool top_right_occupied = local_tiles[0*3 + 2] != 6;
 		Bool bottom_left_occupied = local_tiles[2*3 + 0] != 6;
 		Bool top_left_occupied = local_tiles[0*3 + 0] != 6;
-
+		Bool left_tile_occupied = local_tiles[1*3 + 0] != 6;
+		Bool right_tile_occupied = local_tiles[1*3 + 2] != 6;
 
 		if (y_movement != 0 || x_movement != 0) {
+
 			S32 current_tile_offset_y = (player_y - SUBPIXELS_PER_TILE/2) & (SUBPIXELS_PER_TILE - 1);
 			S32 current_tile_offset_x = (player_x - SUBPIXELS_PER_TILE/2) & (SUBPIXELS_PER_TILE - 1);
 
-			Bool is_in_center_x = current_tile_offset_x == SUBPIXELS_PER_TILE/2;
-			Bool is_in_center_y = current_tile_offset_y == SUBPIXELS_PER_TILE/2;
+			S32 offset_from_center_x = current_tile_offset_x - SUBPIXELS_PER_TILE/2;
+			S32 offset_from_center_y = current_tile_offset_y - SUBPIXELS_PER_TILE/2;
+
+			Bool is_in_center_x = offset_from_center_x == 0;
+			Bool is_in_center_y = offset_from_center_y == 0;
 
 			S32 next_player_y = player_y + move_speed*y_movement;
 			S32 next_player_x = player_x + move_speed*x_movement;
 
-			S32 corner_assist_threshold = SUBPIXELS_PER_TILE/4;
+			S32 corner_assist_threshold = SUBPIXELS_PER_TILE/3;
+			S32 corner_assist_from_center = SUBPIXELS_PER_TILE/2 - corner_assist_threshold;
 
-			S32 distance_to_top_edge = current_tile_offset_y;
-			S32 distance_to_bottom_edge = SUBPIXELS_PER_TILE - current_tile_offset_y;
-			S32 distance_to_right_edge = SUBPIXELS_PER_TILE - current_tile_offset_x;
-			S32 distance_to_left_edge = current_tile_offset_x;
+			S32 distance_to_top_edge = SUBPIXELS_PER_TILE/2 + offset_from_center_y;
+			S32 distance_to_bottom_edge = SUBPIXELS_PER_TILE/2 - offset_from_center_y;
+			S32 distance_to_right_edge = SUBPIXELS_PER_TILE/2 - offset_from_center_x;
+			S32 distance_to_left_edge = SUBPIXELS_PER_TILE/2 + offset_from_center_x;
+
+			S32 held_x_movement = x_movement;
+
+			Bool force_auto_adjust = x_movement != 0 && y_movement != 0;
+			if (y_movement < 0 && x_movement > 0) {
+				if (bottom_tile_occupied && top_tile_occupied) {
+					y_movement = 0;
+				} else if (left_tile_occupied && right_tile_occupied) {
+					x_movement = 0;
+				} else if (right_tile_occupied) {
+					if (!top_tile_occupied) {
+						x_movement = 0;
+					} else if (offset_from_center_x >= 0) {
+						x_movement = 0;
+					} else {
+						y_movement = 0;
+					}
+				} else if (top_tile_occupied) {
+					y_movement = 0;
+				} else if (distance_to_right_edge < distance_to_top_edge) {
+					y_movement = 0;
+				} else {
+					x_movement = 0;
+				}
+			} else if (y_movement < 0 && x_movement < 0) {
+				if (bottom_tile_occupied && top_tile_occupied) {
+					y_movement = 0;
+				} else if (left_tile_occupied && right_tile_occupied) {
+					x_movement = 0;
+				} else if (left_tile_occupied) {
+					if (!top_tile_occupied) {
+						x_movement = 0;
+					} else if (offset_from_center_x <= 0) {
+						x_movement = 0;
+					} else {
+						y_movement = 0;
+					}
+				} else if (top_tile_occupied) {
+					y_movement = 0;
+				} else if (distance_to_left_edge < distance_to_top_edge) {
+					y_movement = 0;
+				} else {
+					x_movement = 0;
+				}
+			} else if (y_movement > 0 && x_movement > 0) {
+				if (bottom_tile_occupied && top_tile_occupied) {
+					y_movement = 0;
+				} else if (left_tile_occupied && right_tile_occupied) {
+					x_movement = 0;
+				} else if (right_tile_occupied) {
+					if (!bottom_tile_occupied) {
+						x_movement = 0;
+					} else if (offset_from_center_x >= 0) {
+						x_movement = 0;
+					} else {
+						y_movement = 0;
+					}
+				} else if (bottom_tile_occupied) {
+					y_movement = 0;
+				} else if (distance_to_right_edge < distance_to_bottom_edge) {
+					y_movement = 0;
+				} else {
+					x_movement = 0;
+				}
+			} else if (y_movement > 0 && x_movement < 0) {
+				if (bottom_tile_occupied && top_tile_occupied) {
+					y_movement = 0;
+				} else if (left_tile_occupied && right_tile_occupied) {
+					x_movement = 0;
+				} else if (left_tile_occupied) {
+					if (!bottom_tile_occupied) {
+						x_movement = 0;
+					} else if (offset_from_center_x <= 0) {
+						x_movement = 0;
+					} else {
+						y_movement = 0;
+					}
+				} else if (bottom_tile_occupied) {
+					y_movement = 0;
+				} else if (distance_to_left_edge < distance_to_bottom_edge) {
+					y_movement = 0;
+				} else {
+					x_movement = 0;
+				}
+			}
 
 			if (y_movement != 0 && !x_movement) {
 				Bool adjacent_occupied = local_tiles[(1 + y_movement)*3 + 1] != 6;
 
-				Bool should_corner_assist_right = distance_to_right_edge <= corner_assist_threshold && adjacent_occupied;
+				Bool should_corner_assist_right = offset_from_center_x >= corner_assist_from_center && adjacent_occupied && held_x_movement >= 0;
 				should_corner_assist_right &= (y_movement > 0 && !bottom_right_occupied) || (y_movement < 0 && !top_right_occupied);
 
-				Bool should_corner_assist_left = distance_to_left_edge <= corner_assist_threshold && adjacent_occupied;
+				Bool should_corner_assist_left = offset_from_center_x <= -corner_assist_from_center && adjacent_occupied && held_x_movement <= 0;
 				should_corner_assist_left &= (y_movement > 0 && !bottom_left_occupied) || (y_movement < 0 && !top_left_occupied);
 
-				Bool continued_corner_assist_right = !adjacent_occupied && distance_to_left_edge < 4*256;
+				Bool continued_corner_assist_right = !adjacent_occupied && offset_from_center_x < -(SUBPIXELS_PER_TILE/4) && held_x_movement >= 0;
 				if (y_movement > 0) {
-					continued_corner_assist_right &= distance_to_bottom_edge < SUBPIXELS_PER_TILE/4;
+					continued_corner_assist_right &= offset_from_center_y > SUBPIXELS_PER_TILE/4;
 				} else {
-					continued_corner_assist_right &= distance_to_top_edge < SUBPIXELS_PER_TILE/4;
+					continued_corner_assist_right &= offset_from_center_y < -(SUBPIXELS_PER_TILE/4);
 				}
 
-				Bool continued_corner_assist_left = !adjacent_occupied && distance_to_right_edge < 4*256;
+				Bool continued_corner_assist_left = !adjacent_occupied && offset_from_center_x > SUBPIXELS_PER_TILE/4 && held_x_movement <= 0;
 				if (y_movement > 0) {
-					continued_corner_assist_left &= distance_to_bottom_edge < SUBPIXELS_PER_TILE/4;
+					continued_corner_assist_left &= offset_from_center_y > SUBPIXELS_PER_TILE/4;
 				} else {
-					continued_corner_assist_left &= distance_to_top_edge < SUBPIXELS_PER_TILE/4;
+					continued_corner_assist_left &= offset_from_center_y < -(SUBPIXELS_PER_TILE/4);
 				}
 
 				if (should_corner_assist_right || continued_corner_assist_right) {
@@ -148,14 +226,14 @@ void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs
 				} else {
 
 					if (y_movement > 0) {
-						S32 bottom_edge = TileToWorld(player_tile_y + 1) - 11*256;
+						S32 bottom_edge = TileToWorld(player_tile_y + 1) - 13*256;
 						if (bottom_tile_occupied && next_player_y >= bottom_edge) {
 							player_y = bottom_edge;
 						} else {
 							player_y = next_player_y;
 						}
 					} else {
-						S32 top_edge = TileToWorld(player_tile_y - 1) + 10*256;
+						S32 top_edge = TileToWorld(player_tile_y - 1) + 12*256;
 						if (top_tile_occupied && next_player_y <= top_edge) {
 							player_y = top_edge;
 						} else {
@@ -164,18 +242,20 @@ void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs
 					}
 
 					if (!is_in_center_x) {
-						if (!adjacent_occupied || (y_movement < 0 && distance_to_top_edge >= SUBPIXELS_PER_TILE / 2) || (y_movement > 0 && distance_to_bottom_edge >= SUBPIXELS_PER_TILE / 2)) {
-							S32 x_move = ((current_tile_offset_x - SUBPIXELS_PER_TILE/2) >> 31) | 1;
-							player_x += move_speed*(x_move * -1);
+						if (!adjacent_occupied || (y_movement < 0 && offset_from_center_y >= 0) || (y_movement > 0 && offset_from_center_y <= 0)) {
+							if (offset_from_center_x >= -move_speed && offset_from_center_x <= move_speed) {
+								player_x -= offset_from_center_x;
+							} else {
+								S32 x_move = (offset_from_center_x >> 31) | 1;
+								player_x += move_speed*(x_move * -1);
+							}
 						}
 					}
 				}
 
-			} else if (x_movement != 0) {
+			} else if (x_movement != 0 && !y_movement) {
 				Bool adjacent_occupied = local_tiles[1*3 + 1 + x_movement] != 6;
 
-				Bool left_tile_occupied = local_tiles[1*3 + 0] != 6;
-				Bool right_tile_occupied = local_tiles[1*3 + 2] != 6;
 
 				Bool top_right_occupied = local_tiles[0*3 + 2] != 6;
 				Bool top_left_occupied = local_tiles[0*3 + 0] != 6;
@@ -183,10 +263,10 @@ void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs
 				Bool bottom_right_occupied = local_tiles[2*3 + 2] != 6;
 				Bool bottom_left_occupied = local_tiles[2*3 + 0] != 6;
 
-				Bool should_corner_assist_up = distance_to_top_edge <= corner_assist_threshold && adjacent_occupied;
+				Bool should_corner_assist_up = offset_from_center_y <= -corner_assist_from_center && adjacent_occupied;
 				should_corner_assist_up &= (x_movement > 0 && !top_right_occupied) || (x_movement < 0 && !top_left_occupied);
 
-				Bool should_corner_assist_down = distance_to_bottom_edge <= corner_assist_threshold && adjacent_occupied;
+				Bool should_corner_assist_down = offset_from_center_y >= corner_assist_from_center && adjacent_occupied;
 				should_corner_assist_down &= (x_movement > 0 && !bottom_right_occupied) || (x_movement < 0 && !bottom_left_occupied);
 
 				if (should_corner_assist_up) {
@@ -214,16 +294,11 @@ void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs
 					}
 
 				} else {
-					S32 y_move = ((current_tile_offset_y - SUBPIXELS_PER_TILE/2) >> 31) | 1;
 					player_x = next_player_x;
 
 					Bool cancel_auto_adjust_y = False;
 
-					if (distance_to_top_edge < SUBPIXELS_PER_TILE/4) {
-
-						if (!top_tile_occupied && (distance_to_left_edge <= SUBPIXELS_PER_TILE/4 || distance_to_right_edge <= SUBPIXELS_PER_TILE/4)) {
-							cancel_auto_adjust_y = True;
-						}
+					if (offset_from_center_y < -(SUBPIXELS_PER_TILE/4)) {
 
 						if (x_movement > 0) {
 							if (!top_right_occupied) {
@@ -234,11 +309,7 @@ void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs
 								cancel_auto_adjust_y = True;
 							}
 						}
-					} else if (distance_to_bottom_edge < SUBPIXELS_PER_TILE/4) {
-
-						if (!bottom_tile_occupied && (distance_to_left_edge <= SUBPIXELS_PER_TILE/4 || distance_to_right_edge <= SUBPIXELS_PER_TILE/4)) {
-							cancel_auto_adjust_y = True;
-						}
+					} else if (offset_from_center_y > SUBPIXELS_PER_TILE/4) {
 
 						if (x_movement > 0) {
 							if (!bottom_right_occupied) {
@@ -252,8 +323,13 @@ void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs
 					}
 
 
-					if (!cancel_auto_adjust_y) {
-						player_y += move_speed*(y_move * -1);
+					if (!cancel_auto_adjust_y || force_auto_adjust) {
+						if (offset_from_center_y >= -move_speed && offset_from_center_y <= move_speed) {
+							player_y -= offset_from_center_y;
+						} else {
+							S32 y_move = (offset_from_center_y >> 31) | 1;
+							player_y += move_speed*(y_move * -1);
+						}
 					}
 				}
 			}
@@ -261,21 +337,37 @@ void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs
 		}
 	}
 
+}
+
+void GameRender(U32 *frame_buffer) {
+
+	for (U32 y = 0; y < 13; ++y) {
+		for (U32 x = 0; x < 17; ++x) {
+			U8 tile_sprite_lookup = level[y*17 + x];
+
+			Rectangle rect = {
+				.x = (tile_sprite_lookup % 7) * 16,
+				.y = (tile_sprite_lookup / 7) * 16,
+				.width = 16,
+				.height = 16,
+			};
+
+			BlitBitmapRectangleToFramebuffer(frame_buffer, (S32)x*16-8, (S32)y*16-8, tiles, rect);
+		}
+	}
+
 	S32 player_render_y = ((player_y - 128)>>8)-8;
 	S32 player_render_x = ((player_x + 128)>>8);
 
-	static Direction animation_direction = DIRECTION_DOWN;
-	static U32 player_animation_frame = 0;
-
 	Direction next_animation_direction = DIRECTION_DOWN;
 
-	if (y_movement != 0 && (!y_collision || x_movement == 0)) {
+	if (y_movement != 0 && x_movement == 0) {
 		if (y_movement > 0) {
 			next_animation_direction = DIRECTION_DOWN;
 		} else {
 			next_animation_direction = DIRECTION_UP;
 		}
-	} else if (x_movement != 0 && (!x_collision || y_movement == 0)) {
+	} else if (x_movement != 0 && y_movement == 0) {
 		if (x_movement > 0) {
 			next_animation_direction = DIRECTION_RIGHT;
 		} else {
@@ -294,8 +386,4 @@ void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs
 
 	previous_x_movement = x_movement;
 	previous_y_movement = y_movement;
-}
-
-void GameExit(void) {
-
 }

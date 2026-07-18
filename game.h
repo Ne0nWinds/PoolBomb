@@ -71,6 +71,48 @@ static inline Bool WasButtonReleased(GameInput input, enum Button button) {
 
 void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs, U32 player_count);
 
-void GameExit(void);
+void GameRender(U32 *frame_buffer);
+
+static void Print(const char *fmt, ...);
+
+#define USE_DEBUG
+
+#if defined(USE_DEBUG)
+
+#include <stdio.h>
+#include <stdarg.h>
+
+#if defined(PLATFORM_EMSCRIPTEN)
+#include <emscripten/console.h>
+
+static void Print(const char *fmt, ...) {
+	va_list args;
+	char buffer[128];
+
+	va_start(args, fmt);
+	vsnprintf(buffer, 128, fmt, args);
+	va_end(args);
+
+	emscripten_console_log(buffer);
+}
+
+#elif defined(PLATFORM_WIN32)
+
+#define _AMD64_
+#include <windef.h>
+#include <debugapi.h>
+
+static void Print(const char *fmt, ...) {
+	va_list args;
+	char buffer[128];
+
+	va_start(args, fmt);
+	vsnprintf(buffer, 128, fmt, args);
+	va_end(args);
+
+	OutputDebugStringA(buffer);
+}
+#endif
+#endif
 
 #endif

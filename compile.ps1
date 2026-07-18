@@ -14,6 +14,7 @@ if ($win32) {
 		"-Wno-unused-parameter",
 		"-Wno-unused-function",
 		"-pedantic-errors",
+		"-DPLATFORM_WIN32",
 		"-Ilib/"
 	)
 
@@ -46,7 +47,9 @@ if ($web) {
 		"-Wno-unused-parameter",
 		"-Wno-unused-function",
 		"-msimd128",
+		"-mbulk-memory",
 		"-Ilib/",
+		"-DPLATFORM_EMSCRIPTEN",
 		"-sINITIAL_MEMORY=16973824"
 	)
 
