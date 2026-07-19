@@ -106,7 +106,7 @@ void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs
 			S32 next_player_y = player_y + move_speed*y_movement;
 			S32 next_player_x = player_x + move_speed*x_movement;
 
-			S32 corner_assist_threshold = SUBPIXELS_PER_TILE/3;
+			S32 corner_assist_threshold = SUBPIXELS_PER_TILE*4/16;
 			S32 corner_assist_from_center = SUBPIXELS_PER_TILE/2 - corner_assist_threshold;
 
 			S32 distance_to_top_edge = SUBPIXELS_PER_TILE/2 + offset_from_center_y;

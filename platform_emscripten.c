@@ -103,10 +103,12 @@ U32 ReadGamepadState(void) {
 	if (gamepad.digitalButton[14]) button_flags |= BUTTON_LEFT;
 	if (gamepad.digitalButton[15]) button_flags |= BUTTON_RIGHT;
 
-	if (gamepad.axis[1] < -0.5) button_flags |= BUTTON_UP;
-	if (gamepad.axis[1] >  0.5) button_flags |= BUTTON_DOWN;
-	if (gamepad.axis[0] < -0.5) button_flags |= BUTTON_LEFT;
-	if (gamepad.axis[0] >  0.5) button_flags |= BUTTON_RIGHT;
+	F64 joystick_threshold = 9.0 / 16.0;
+
+	if (gamepad.axis[1] < -joystick_threshold) button_flags |= BUTTON_UP;
+	if (gamepad.axis[1] >  joystick_threshold) button_flags |= BUTTON_DOWN;
+	if (gamepad.axis[0] < -joystick_threshold) button_flags |= BUTTON_LEFT;
+	if (gamepad.axis[0] >  joystick_threshold) button_flags |= BUTTON_RIGHT;
 	return button_flags;
 }
 
