@@ -122,18 +122,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 				player_one_input->current_button_state |= (BUTTON_LEFT * left_button);
 			}
 
-			if (remaining_time > update_delta * 6) {
-				remaining_time = update_delta;
-			}
-
 			if (remaining_time >= update_delta) {
 				do {
-					frame_index += 1;
-					GameFrame(g_framebuffer, frame_index, g_player_inputs, 1);
 					remaining_time -= update_delta;
+					Bool should_render = remaining_time < update_delta;
+					GameFrame(g_framebuffer, frame_index, g_player_inputs, 1, should_render);
+					frame_index += 1;
 				} while (remaining_time >= update_delta);
-
-				GameRender(g_framebuffer);
 			}
 		}
 

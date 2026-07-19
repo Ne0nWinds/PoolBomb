@@ -172,54 +172,6 @@ static void DisplayAnimationFrame(U32 *frame_buffer, U32 *x_offsets, Bitmap spri
 	BlitBitmapRectangleToFramebuffer(frame_buffer, x, y, spriteset, sprite_rect);
 }
 
-static void AdvanceAndDisplayPlayerAnimationWalkCycle(U32 *frame_buffer, WalkAnimation *walk_animations, Bitmap spriteset, U32 character_index, U32 *animation_frame, Direction animation_direction, Bool is_moving, Bool was_moving_last_frame, S32 player_x, S32 player_y, U32 animation_frame_delay) {
-
-	WalkAnimation animation = walk_animations[animation_direction];
-
-	U32 animation_length = animation.frame_count;
-
-	Bool started_moving = is_moving && (!was_moving_last_frame);
-
-	if (started_moving) {
-		*animation_frame += animation.start_offset * animation_frame_delay;
-	}
-
-	U32 animation_index = (*animation_frame / animation_frame_delay) % animation_length;
-	Bool animation_finished = animation_index == 0 || animation_index == animation.neutral_frame;
-
-	if (is_moving) {
-		*animation_frame += 1;
-	} else if (!animation_finished) {
-		U32 behind = (animation_index <= animation.neutral_frame) ? 0 : animation.neutral_frame;
-		U32 ahead = (animation_index < animation.neutral_frame) ? animation.neutral_frame : animation_length;
-
-		Bool should_reverse = (animation_index - behind) <= (ahead - animation_index);
-
-		if (should_reverse) {
-			*animation_frame -= 1;
-			U32 next_animation_index = (*animation_frame / animation_frame_delay) % animation_length;
-			if (next_animation_index == 0) {
-				*animation_frame = animation.neutral_frame * animation_frame_delay;
-			}
-
-			if (next_animation_index == animation.neutral_frame) {
-				*animation_frame = 0;
-			}
-		} else {
-			*animation_frame += 1;
-		}
-	}
-
-	Rectangle sprite_rect = {
-		.x = animation.x_offsets[animation_index],
-		.y = 16 + 48*character_index,
-		.width = 32,
-		.height = 32
-	};
-
-	BlitBitmapRectangleToFramebuffer(frame_buffer, player_x, player_y, spriteset, sprite_rect);
-}
-
 static void SetupDeathAnimation(BasicAnimation *death_animation, U32 *animation_x_offsets) {
 
 	death_animation->x_offsets = animation_x_offsets;

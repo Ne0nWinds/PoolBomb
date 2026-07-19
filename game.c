@@ -48,21 +48,24 @@ static const S32 move_speed = 160+16;
 
 static S64 player_y = 0 * 256;
 static S64 player_x = 0 * 256;
-static S32 previous_x_movement = 0;
-static S32 previous_y_movement = 0;
 
-static Direction animation_direction = DIRECTION_DOWN;
-static U32 player_animation_frame = 0;
+static Direction g_animation_direction = DIRECTION_DOWN;
+static U32 g_animation_tick = 0;
 
 static S32 y_movement = 0;
 static S32 x_movement = 0;
 
-void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs, U32 player_count) {
+static void GameRender(U32 *frame_buffer);
+
+void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs, U32 player_count, Bool should_render) {
 
 	Bool down = IsButtonDown(player_inputs[0], BUTTON_DOWN);
 	Bool up = IsButtonDown(player_inputs[0], BUTTON_UP);
 	Bool left = IsButtonDown(player_inputs[0], BUTTON_LEFT);
 	Bool right = IsButtonDown(player_inputs[0], BUTTON_RIGHT);
+
+	S32 previous_x_movement = x_movement;
+	S32 previous_y_movement = y_movement;
 
 	y_movement = (S32)down - (S32)up;
 	x_movement = (S32)right - (S32)left;
@@ -337,27 +340,6 @@ void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs
 		}
 	}
 
-}
-
-void GameRender(U32 *frame_buffer) {
-
-	for (U32 y = 0; y < 13; ++y) {
-		for (U32 x = 0; x < 17; ++x) {
-			U8 tile_sprite_lookup = level[y*17 + x];
-
-			Rectangle rect = {
-				.x = (tile_sprite_lookup % 7) * 16,
-				.y = (tile_sprite_lookup / 7) * 16,
-				.width = 16,
-				.height = 16,
-			};
-
-			BlitBitmapRectangleToFramebuffer(frame_buffer, (S32)x*16-8, (S32)y*16-8, tiles, rect);
-		}
-	}
-
-	S32 player_render_y = ((player_y - 128)>>8)-8;
-	S32 player_render_x = ((player_x + 128)>>8);
 
 	Direction next_animation_direction = DIRECTION_DOWN;
 
@@ -376,14 +358,70 @@ void GameRender(U32 *frame_buffer) {
 	}
 
 	if (y_movement != 0 || x_movement != 0) {
-		if (animation_direction != next_animation_direction) {
-			player_animation_frame = 0;
+		if (g_animation_direction != next_animation_direction) {
+			g_animation_tick = 0;
 		}
-		animation_direction = next_animation_direction;
+		g_animation_direction = next_animation_direction;
 	}
 
-	AdvanceAndDisplayPlayerAnimationWalkCycle(frame_buffer, g_walk_animations, base_spriteset, 0, &player_animation_frame, animation_direction, x_movement || y_movement, previous_x_movement || previous_y_movement, player_render_x, player_render_y, 4);
+	U32 animation_frame_delay = 4;
 
-	previous_x_movement = x_movement;
-	previous_y_movement = y_movement;
+	WalkAnimation walk_animation = g_walk_animations[g_animation_direction];
+	U32 animation_length = walk_animation.frame_count;
+	Bool started_moving = (x_movement != 0 || y_movement != 0) && (previous_x_movement != 0 && previous_y_movement != 0);
+	if (started_moving) {
+		g_animation_tick += walk_animation.start_offset * animation_frame_delay;
+	}
+	U32 animation_index = (g_animation_tick / animation_frame_delay) % animation_length;
+	Bool animation_finished = animation_index == 0 || animation_index == walk_animation.neutral_frame;
+	if (x_movement != 0 || y_movement != 0) {
+		g_animation_tick += 1;
+	} else if (!animation_finished) {
+		U32 behind = (animation_index <= walk_animation.neutral_frame) ? 0 : walk_animation.neutral_frame;
+		U32 ahead = (animation_index < walk_animation.neutral_frame) ? walk_animation.neutral_frame : animation_length;
+
+		Bool should_reverse = (animation_index - behind) <= (ahead - animation_index);
+
+		if (should_reverse) {
+			g_animation_tick -= 1;
+			U32 next_animation_index = (g_animation_tick / animation_frame_delay) % animation_length;
+			if (next_animation_index == 0) {
+				g_animation_tick = walk_animation.neutral_frame * animation_frame_delay;
+			}
+
+			if (next_animation_index == walk_animation.neutral_frame) {
+				g_animation_tick = 0;
+			}
+		} else {
+			g_animation_tick += 1;
+		}
+	}
+
+	if (should_render) {
+		for (U32 y = 0; y < 13; ++y) {
+			for (U32 x = 0; x < 17; ++x) {
+				U8 tile_sprite_lookup = level[y*17 + x];
+
+				Rectangle rect = {
+					.x = (tile_sprite_lookup % 7) * 16,
+					.y = (tile_sprite_lookup / 7) * 16,
+					.width = 16,
+					.height = 16,
+				};
+
+				BlitBitmapRectangleToFramebuffer(frame_buffer, (S32)x*16-8, (S32)y*16-8, tiles, rect);
+			}
+		}
+
+		Rectangle sprite_rect = {
+			.x = walk_animation.x_offsets[animation_index],
+			.y = 16 + 48*0,
+			.width = 32,
+			.height = 32
+		};
+
+		S32 player_render_y = ((player_y - 128)>>8)-8;
+		S32 player_render_x = ((player_x + 128)>>8);
+		BlitBitmapRectangleToFramebuffer(frame_buffer, player_render_x, player_render_y, base_spriteset, sprite_rect);
+	}
 }
