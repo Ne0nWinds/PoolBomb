@@ -59,10 +59,17 @@ static void GameRender(U32 *frame_buffer);
 
 void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs, U32 player_count, Bool should_render) {
 
-	Bool down = IsButtonDown(player_inputs[0], BUTTON_DOWN);
-	Bool up = IsButtonDown(player_inputs[0], BUTTON_UP);
-	Bool left = IsButtonDown(player_inputs[0], BUTTON_LEFT);
-	Bool right = IsButtonDown(player_inputs[0], BUTTON_RIGHT);
+	Bool down = False;
+	Bool up = False;
+	Bool left = False;
+	Bool right = False;
+
+	for (U32 i = 0; i < player_count; ++i) {
+		down |= IsButtonDown(player_inputs[i], BUTTON_DOWN);
+		up |= IsButtonDown(player_inputs[i], BUTTON_UP);
+		left |= IsButtonDown(player_inputs[i], BUTTON_LEFT);
+		right |= IsButtonDown(player_inputs[i], BUTTON_RIGHT);
+	}
 
 	S32 previous_x_movement = x_movement;
 	S32 previous_y_movement = y_movement;

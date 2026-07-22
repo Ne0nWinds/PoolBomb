@@ -29,6 +29,7 @@ if ($win32) {
 		"-lopengl32",
 		"-lgdi32",
 		"-luser32"
+		"-lxinput"
 	)
 
 	clang @cf platform_win32.c game.c $engineLibWin @lf -o build/PoolBomb.exe

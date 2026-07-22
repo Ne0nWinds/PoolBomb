@@ -2,6 +2,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <GL/gl.h>
+#include <xinput.h>
 
 #include "game.h"
 
@@ -104,31 +105,77 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 		remaining_time += delta;
 		counter1 = counter2;
 
-		if (remaining_time >= update_delta) {
+		{
+			Bool up_button =	(GetAsyncKeyState('W') & 0x8000) != 0;
+			Bool right_button = (GetAsyncKeyState('D') & 0x8000) != 0;
+			Bool down_button =	(GetAsyncKeyState('S') & 0x8000) != 0;
+			Bool left_button =	(GetAsyncKeyState('A') & 0x8000) != 0;
 
-			{
-				Bool up_button =	(GetAsyncKeyState('W') & 0x8000) != 0;
-				Bool right_button = (GetAsyncKeyState('D') & 0x8000) != 0;
-				Bool down_button =	(GetAsyncKeyState('S') & 0x8000) != 0;
-				Bool left_button =	(GetAsyncKeyState('A') & 0x8000) != 0;
+			GameInput *player_one_input = &g_player_inputs[0];
 
-				GameInput *player_one_input = &g_player_inputs[0];
+			player_one_input->previous_button_state = player_one_input->current_button_state;
+			player_one_input->current_button_state |= (BUTTON_UP * up_button);
+			player_one_input->current_button_state |= (BUTTON_RIGHT * right_button);
+			player_one_input->current_button_state |= (BUTTON_DOWN * down_button);
+			player_one_input->current_button_state |= (BUTTON_LEFT * left_button);
+		}
 
-				player_one_input->previous_button_state = player_one_input->current_button_state;
-				player_one_input->current_button_state = 0;
-				player_one_input->current_button_state |= (BUTTON_UP * up_button);
-				player_one_input->current_button_state |= (BUTTON_RIGHT * right_button);
-				player_one_input->current_button_state |= (BUTTON_DOWN * down_button);
-				player_one_input->current_button_state |= (BUTTON_LEFT * left_button);
+		U32 controllers_connected = 0;
+		{
+			// static const F64 joystick_threshold = 9.0/16.0;
+
+			for (U32 i = 0; i < 3; ++i) {
+				XINPUT_STATE gamepad_state = {0};
+				if (XInputGetState(i, &gamepad_state) != ERROR_SUCCESS) break;
+
+				controllers_connected += 1;
+
+				WORD wb = gamepad_state.Gamepad.wButtons;
+				Bool up_button = (wb & XINPUT_GAMEPAD_DPAD_UP) != 0;
+				Bool right_button = (wb & XINPUT_GAMEPAD_DPAD_RIGHT) != 0;
+				Bool down_button = (wb & XINPUT_GAMEPAD_DPAD_DOWN) != 0;
+				Bool left_button = (wb & XINPUT_GAMEPAD_DPAD_LEFT) != 0;
+
+				GameInput *input = &g_player_inputs[i+1];
+				input->previous_button_state = input->current_button_state;
+				input->current_button_state |= (BUTTON_UP * up_button);
+				input->current_button_state |= (BUTTON_RIGHT * right_button);
+				input->current_button_state |= (BUTTON_DOWN * down_button);
+				input->current_button_state |= (BUTTON_LEFT * left_button);
+
+				SHORT left_stick_y_axis = gamepad_state.Gamepad.sThumbLY;
+				if (left_stick_y_axis > (SHORT)(32767*9/16)) {
+					input->current_button_state |= BUTTON_UP;
+				}
+				if (left_stick_y_axis < (SHORT)(-32768*9/16)) {
+					input->current_button_state |= BUTTON_DOWN;
+				}
+
+				SHORT left_stick_x_axis = gamepad_state.Gamepad.sThumbLX;
+				if (left_stick_x_axis > (SHORT)(32767*9/16)) {
+					input->current_button_state |= BUTTON_RIGHT;
+				}
+				if (left_stick_x_axis < (SHORT)(-32768*9/16)) {
+					input->current_button_state |= BUTTON_LEFT;
+				}
 			}
+		}
 
+		if (remaining_time >= update_delta) {
 			if (remaining_time >= update_delta) {
 				do {
 					remaining_time -= update_delta;
 					Bool should_render = remaining_time < update_delta;
-					GameFrame(g_framebuffer, frame_index, g_player_inputs, 1, should_render);
+					GameFrame(g_framebuffer, frame_index, g_player_inputs, controllers_connected + 1, should_render);
+					for (U32 i = 0; i < MAX_PLAYER_COUNT; ++i) {
+						g_player_inputs[i].previous_button_state = g_player_inputs[i].current_button_state;
+					}
 					frame_index += 1;
 				} while (remaining_time >= update_delta);
+			}
+
+			for (U32 i = 0; i < MAX_PLAYER_COUNT; ++i) {
+				g_player_inputs[i].current_button_state = 0;
 			}
 		}
 

@@ -66,6 +66,17 @@ static Rectangle RectangleIntersection(Rectangle a, Rectangle b) {
 	return result;
 }
 
+typedef struct BlitRegion {
+	S32 absolute_x, absolute_y;
+	S32 relative_x, relative_y;
+	U32 width, height;
+} BlitRegion;
+
+typedef struct BlitIterator {
+	BlitRegion region;
+	U32 y;
+} BlitIterator;
+
 static void BlitBitmapRectangleToFramebuffer(U32 *dst_frame_buffer, S32 dst_x, S32 dst_y, Bitmap src_bitmap, Rectangle src_rectangle) {
 
 	Rectangle frame_buffer = { 0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT };
