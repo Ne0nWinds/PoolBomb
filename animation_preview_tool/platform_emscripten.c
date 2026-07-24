@@ -171,9 +171,10 @@ static bool RequestAnimationFrameCallback(F64 time, void *data) {
 		g_gamepad_state = 0;
 
 		do {
-			GameFrame(g_framebuffer, g_frame_index, &input, 1);
-			input.previous_button_state = input.current_button_state;
 			g_remaining_time -= update_rate;
+			Bool should_render = g_remaining_time < update_rate;
+			GameFrame(g_framebuffer, g_frame_index, &input, 1, should_render);
+			input.previous_button_state = input.current_button_state;
 			g_frame_index += 1;
 		} while (g_remaining_time >= update_rate);
 

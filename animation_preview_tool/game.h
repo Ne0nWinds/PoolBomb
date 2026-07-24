@@ -71,6 +71,6 @@ static inline Bool WasButtonReleased(GameInput input, enum Button button) {
 	return button_previously_down && button_currently_up;
 }
 
-void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs, U32 player_count);
+void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs, U32 player_count, Bool should_render);
 
 #endif

@@ -50,9 +50,10 @@ void GameInit(U32 *frame_buffer, U32 *screen_width, U32 *screen_height) {
 
 static U32 g_previous_animation_speed = 4;
 static U32 g_animation_mode = 0;
-static U32 player_animation_frame = 0;
 
-void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs, U32 player_count) {
+static Player player;
+
+void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs, U32 player_count, Bool should_render) {
 
 	GameInput input = player_inputs[0];
 
@@ -67,7 +68,7 @@ void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs
 	}
 
 	if (g_previous_animation_speed != input.animation_speed) {
-		player_animation_frame = 0;
+		player.animation_tick = 0;
 		g_previous_animation_speed = input.animation_speed;
 	}
 
@@ -77,15 +78,13 @@ void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs
 		Bool left = IsButtonDown(input, BUTTON_LEFT);
 		Bool right = IsButtonDown(input, BUTTON_RIGHT);
 
-		static S32 previous_x_movement = 0;
-		static S32 previous_y_movement = 0;
-		S32 y_movement = (S32)up - (S32)down;
+		S32 y_movement = (S32)down - (S32)up;
 		S32 x_movement = (S32)right - (S32)left;
 		static Direction animation_direction = DIRECTION_DOWN;
 
 		if (y_movement != 0) {
 			if (animation_direction == DIRECTION_LEFT || animation_direction == DIRECTION_RIGHT) {
-				player_animation_frame = 0;
+				player.animation_tick = 0;
 			}
 			if (y_movement > 0) {
 				animation_direction = DIRECTION_UP;
@@ -94,7 +93,7 @@ void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs
 			}
 		} else if (x_movement != 0) {
 			if (animation_direction == DIRECTION_UP || animation_direction == DIRECTION_DOWN) {
-				player_animation_frame = 0;
+				player.animation_tick = 0;
 			}
 			if (x_movement > 0) {
 				animation_direction = DIRECTION_RIGHT;
@@ -103,10 +102,21 @@ void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs
 			}
 		}
 
-		AdvanceAndDisplayPlayerAnimationWalkCycle(frame_buffer, g_walk_animations, g_spriteset, character_index, &player_animation_frame, animation_direction, x_movement, y_movement, previous_x_movement, previous_y_movement, 0, 0, input.animation_speed);
+		UpdatePlayerAnimationTick(&player, x_movement, y_movement, input.animation_speed, g_walk_animations);
 
-		previous_x_movement = x_movement;
-		previous_y_movement = y_movement;
+		// RenderPlayer(&player, frame_buffer, g_spriteset, input.character_index, g_walk_animations);
+
+		if (should_render) {
+			WalkAnimation walk_animation = g_walk_animations[player.animation_direction];
+			Rectangle sprite_rect = {
+				.x = walk_animation.x_offsets[player.animation_index],
+				.y = 16 + 48*character_index,
+				.width = 32,
+				.height = 32
+			};
+			BlitBitmapRectangleToFramebuffer(frame_buffer, 0, 0, g_spriteset, sprite_rect);
+		}
+
 	} else if (g_animation_mode == ANIM_MODE_WALK_DEATH) {
 
 		static Bool should_play_death_animation = False;
@@ -118,11 +128,14 @@ void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs
 		}
 
 		if (should_play_death_animation) {
-			AnimationState state = AdvanceBasicAnimation(g_death_animation, input.animation_speed, player_animation_frame);
+			AnimationState state = AdvanceBasicAnimation(g_death_animation, input.animation_speed, player.animation_tick);
 
 			U32 animation_render_index = state.animation_render_index;
-			player_animation_frame = state.global_animation_tick;
-			DisplayAnimationFrame(frame_buffer, g_death_animation.x_offsets, g_spriteset, character_index, animation_render_index, 0, 0);
+			player.animation_tick = state.global_animation_tick;
+
+			if (should_render) {
+				DisplayAnimationFrame(frame_buffer, g_death_animation.x_offsets, g_spriteset, character_index, animation_render_index, 0, 0);
+			}
 
 			if (state.animation_will_end_next_tick) {
 				should_play_death_animation = False;
@@ -130,7 +143,7 @@ void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs
 			}
 		} else if (animation_end_ticks < animation_end_tick_delay) {
 			animation_end_ticks += 1;
-		} else {
+		} else if (should_render) {
 			DisplayAnimationFrame(frame_buffer, g_walk_animations[DIRECTION_DOWN].x_offsets, g_spriteset, character_index, 0, 0, 0);
 		}
 
@@ -157,8 +170,8 @@ void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs
 			.x_offsets = walk_animation.x_offsets,
 			.frame_count = walk_animation.frame_count
 		};
-		AnimationState state = AdvanceBasicAnimation(basic_animation, input.animation_speed, player_animation_frame);
-		player_animation_frame = state.global_animation_tick;
+		AnimationState state = AdvanceBasicAnimation(basic_animation, input.animation_speed, player.animation_tick);
+		player.animation_tick = state.global_animation_tick;
 
 		DisplayAnimationFrame(frame_buffer, basic_animation.x_offsets, g_spriteset, character_index, state.animation_render_index, 0, 0);
 	}
@@ -170,7 +183,7 @@ EMSCRIPTEN_KEEPALIVE U32 GetCharacterCount(void) {
 
 EMSCRIPTEN_KEEPALIVE void SetAnimationMode(U32 in_animation_mode) {
 	g_animation_mode = in_animation_mode;
-	player_animation_frame = 0;
+	player.animation_tick = 0;
 }
 
 EMSCRIPTEN_KEEPALIVE U32 ReloadSpritesetFromMemory(U8 *data, U32 length) {

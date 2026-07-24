@@ -11,7 +11,7 @@ static U8 level[] = {
 	#include "levels/test.csv"
 };
 
-static S32 S32_Abs(S32 a) {
+static inline S32 S32_Abs(S32 a) {
 	if (a < 0) a = -a;
 	return a;
 }
@@ -45,14 +45,6 @@ static void DisplayWalkAnimationSheet(U32 *frame_buffer, Bitmap spriteset, WalkA
 }
 
 static const S32 move_speed = 160+16;
-
-typedef struct {
-	S32 x, y;
-	Direction animation_direction;
-	U32 animation_tick;
-	U32 animation_index;
-	S32 previous_x_movement, previous_y_movement;
-} Player;
 
 static void UpdatePlayer(Player *p, GameInput input) {
 
@@ -336,84 +328,12 @@ static void UpdatePlayer(Player *p, GameInput input) {
 		}
 	}
 
-
-	Direction next_animation_direction = DIRECTION_DOWN;
-
-	if (y_movement != 0 && x_movement == 0) {
-		if (y_movement > 0) {
-			next_animation_direction = DIRECTION_DOWN;
-		} else {
-			next_animation_direction = DIRECTION_UP;
-		}
-	} else if (x_movement != 0 && y_movement == 0) {
-		if (x_movement > 0) {
-			next_animation_direction = DIRECTION_RIGHT;
-		} else {
-			next_animation_direction = DIRECTION_LEFT;
-		}
-	}
-
-	if (y_movement != 0 || x_movement != 0) {
-		if (player.animation_direction != next_animation_direction) {
-			player.animation_tick = 0;
-		}
-		player.animation_direction = next_animation_direction;
-	}
-
-	U32 animation_frame_delay = 4;
-
-	WalkAnimation walk_animation = g_walk_animations[player.animation_direction];
-	U32 animation_length = walk_animation.frame_count;
-	Bool started_moving = (x_movement != 0 || y_movement != 0) && (player.previous_x_movement != 0 && player.previous_y_movement != 0);
-	if (started_moving) {
-		player.animation_tick += walk_animation.start_offset * animation_frame_delay;
-	}
-	U32 animation_index = (player.animation_tick / animation_frame_delay) % animation_length;
-	Bool animation_finished = animation_index == 0 || animation_index == walk_animation.neutral_frame;
-	if (x_movement != 0 || y_movement != 0) {
-		player.animation_tick += 1;
-	} else if (!animation_finished) {
-		U32 behind = (animation_index <= walk_animation.neutral_frame) ? 0 : walk_animation.neutral_frame;
-		U32 ahead = (animation_index < walk_animation.neutral_frame) ? walk_animation.neutral_frame : animation_length;
-
-		Bool should_reverse = (animation_index - behind) <= (ahead - animation_index);
-
-		if (should_reverse) {
-			player.animation_tick -= 1;
-			U32 next_animation_index = (player.animation_tick / animation_frame_delay) % animation_length;
-			if (next_animation_index == 0) {
-				player.animation_tick = walk_animation.neutral_frame * animation_frame_delay;
-			}
-
-			if (next_animation_index == walk_animation.neutral_frame) {
-				player.animation_tick = 0;
-			}
-		} else {
-			player.animation_tick += 1;
-		}
-	}
-	player.animation_index = animation_index;
+	UpdatePlayerAnimationTick(&player, x_movement, y_movement, 4, g_walk_animations);
 
 	player.previous_x_movement = x_movement;
 	player.previous_y_movement = y_movement;
 
-
 	*p = player;
-}
-
-void RenderPlayer(Player *player, U32 *frame_buffer, U32 character_index) {
-
-	WalkAnimation walk_animation = g_walk_animations[player->animation_direction];
-	Rectangle sprite_rect = {
-		.x = walk_animation.x_offsets[player->animation_index],
-		.y = 16 + 48*character_index,
-		.width = 32,
-		.height = 32
-	};
-
-	S32 player_render_y = ((player->y - 128)>>8)-8;
-	S32 player_render_x = ((player->x + 128)>>8);
-	BlitBitmapRectangleToFramebuffer(frame_buffer, player_render_x, player_render_y, base_spriteset, sprite_rect);
 }
 
 static Player players[4];
@@ -460,7 +380,7 @@ void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs
 		
 		for (U32 i = 0; i < player_count; ++i) {
 			U32 index = sorted_indices[i];
-			RenderPlayer(&players[index], frame_buffer, index % 2);
+			RenderPlayer(&players[index], frame_buffer, base_spriteset, index % 2, g_walk_animations);
 		}
 	}
 }
