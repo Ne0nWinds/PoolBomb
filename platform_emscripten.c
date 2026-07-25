@@ -34,52 +34,41 @@ static EM_BOOL OnWindowLoseFocus(int t, const EmscriptenFocusEvent *e, void *_) 
 	return EM_TRUE;
 }
 
-static EM_BOOL OnKeydown(int t, const EmscriptenKeyboardEvent *e, void *_) {
-	const char *code = e->code;
-
-	if (!strcmp(code, "ArrowUp") || !strcmp(code, "KeyW")) {
-		g_keyboard_state |= BUTTON_UP;
-		return EM_TRUE;
+static inline void SetOrClear(U32 *value, U32 bit, Bool set) {
+	if (set) {
+		*value |= bit;
+	} else {
+		*value &= ~bit;
 	}
-
-	if (!strcmp(code, "ArrowDown") || !strcmp(code, "KeyS")) {
-		g_keyboard_state |= BUTTON_DOWN;
-		return EM_TRUE;
-	}
-
-	if (!strcmp(code, "ArrowLeft") || !strcmp(code, "KeyA")) {
-		g_keyboard_state |= BUTTON_LEFT;
-		return EM_TRUE;
-	}
-
-	if (!strcmp(code, "ArrowRight") || !strcmp(code, "KeyD")) {
-		g_keyboard_state |= BUTTON_RIGHT;
-		return EM_TRUE;
-	}
-
-	return EM_FALSE;
 }
 
-static EM_BOOL OnKeyUp(int t, const EmscriptenKeyboardEvent *e, void *_) {
+static EM_BOOL HandleKey(int t, const EmscriptenKeyboardEvent *e, void *_) {
+
 	const char *code = e->code;
+	Bool key_down = (t == EMSCRIPTEN_EVENT_KEYDOWN);
 
 	if (!strcmp(code, "ArrowUp") || !strcmp(code, "KeyW")) {
-		g_keyboard_state &= ~(BUTTON_UP);
+		SetOrClear(&g_keyboard_state, BUTTON_UP, key_down);
 		return EM_TRUE;
 	}
 
 	if (!strcmp(code, "ArrowDown") || !strcmp(code, "KeyS")) {
-		g_keyboard_state &= ~(BUTTON_DOWN);
+		SetOrClear(&g_keyboard_state, BUTTON_DOWN, key_down);
 		return EM_TRUE;
 	}
 
 	if (!strcmp(code, "ArrowLeft") || !strcmp(code, "KeyA")) {
-		g_keyboard_state &= ~(BUTTON_LEFT);
+		SetOrClear(&g_keyboard_state, BUTTON_LEFT, key_down);
 		return EM_TRUE;
 	}
 
 	if (!strcmp(code, "ArrowRight") || !strcmp(code, "KeyD")) {
-		g_keyboard_state &= ~(BUTTON_RIGHT);
+		SetOrClear(&g_keyboard_state, BUTTON_RIGHT, key_down);
+		return EM_TRUE;
+	}
+
+	if (!strcmp(code, "Space")) {
+		SetOrClear(&g_keyboard_state, BUTTON_X, key_down);
 		return EM_TRUE;
 	}
 
@@ -181,7 +170,7 @@ int main(void) {
 	GameInit();
 
 	emscripten_request_animation_frame_loop(RequestAnimationFrameCallback, NULL);
-	emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, NULL, EM_TRUE, OnKeydown);
-	emscripten_set_keyup_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, NULL, EM_TRUE, OnKeyUp);
+	emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, NULL, EM_TRUE, HandleKey);
+	emscripten_set_keyup_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, NULL, EM_TRUE, HandleKey);
 	emscripten_set_blur_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, NULL, EM_TRUE, OnWindowLoseFocus);
 }

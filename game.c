@@ -6,10 +6,17 @@
 
 static Bitmap base_spriteset;
 static Bitmap tiles;
+static Bitmap items;
+static Bitmap crates;
 
-static U8 level[] = {
+#define LEVEL_HEIGHT 13
+#define LEVEL_WIDTH 17
+
+static const U8 level[LEVEL_HEIGHT*LEVEL_WIDTH] = {
 	#include "levels/test.csv"
 };
+
+static U8 bomb_counters[LEVEL_HEIGHT*LEVEL_WIDTH] = {0};
 
 static inline S32 S32_Abs(S32 a) {
 	if (a < 0) a = -a;
@@ -25,6 +32,10 @@ void GameInit(void) {
 
 	base_spriteset = LoadBitmap("assets/spriteset.png");
 	tiles = LoadBitmap("assets/tiles.png");
+	items = LoadBitmap("assets/items.png");
+	crates = LoadBitmap("assets/crates.png");
+
+	memset(&bomb_counters, 0, sizeof(bomb_counters));
 }
 
 static void DisplayWalkAnimationSheet(U32 *frame_buffer, Bitmap spriteset, WalkAnimation *animation) {
@@ -67,8 +78,8 @@ static void UpdatePlayer(Player *p, GameInput input) {
 			for (S32 x = -1; x <= 1; ++x) {
 				S32 level_y = player_tile_y + y;
 				S32 level_x = player_tile_x + x;
-				Bool in_bounds = level_y >= 0 && level_x >= 0 && level_y < 13 && level_x < 17;
-				local_tiles[(y+1)*3 + (x+1)] = in_bounds ? level[level_y*17 + level_x] : 0;
+				Bool in_bounds = level_y >= 0 && level_x >= 0 && level_y < LEVEL_HEIGHT && level_x < LEVEL_WIDTH;
+				local_tiles[(y+1)*3 + (x+1)] = in_bounds ? level[level_y*LEVEL_WIDTH + level_x] : 0;
 			}
 		}
 		Bool bottom_tile_occupied = local_tiles[2*3 + 1] != 6;
@@ -340,23 +351,65 @@ static Player players[4];
 
 void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs, U32 player_count, Bool should_render) {
 
+	for (U32 y = 0; y < LEVEL_HEIGHT; ++y) {
+		for (U32 x = 0; x < LEVEL_WIDTH; ++x) {
+			U32 index = y*LEVEL_WIDTH + x;
+			U8 remaining_bomb_time = bomb_counters[index];
+			if (remaining_bomb_time > 0) {
+				bomb_counters[index] -= 1;
+			}
+		}
+	}
+
 	for (U32 i = 0; i < player_count; ++i) {
-		UpdatePlayer(&players[i], player_inputs[i]);
+		GameInput player_input = player_inputs[i];
+		Player *player = &players[i];
+
+		Bool place_bomb = WasButtonPressed(player_input, BUTTON_X);
+		if (place_bomb) {
+			S32 place_tile_x = WorldToTile(player->x);
+			S32 place_tile_y = WorldToTile(player->y);
+
+			U32 index = place_tile_y*LEVEL_WIDTH + place_tile_x;
+			U8 remaining_bomb_time = bomb_counters[index];
+
+			if (remaining_bomb_time == 0) {
+				bomb_counters[index] = 180;
+			}
+		}
+
+		UpdatePlayer(player, player_input);
 	}
 
 	if (should_render) {
-		for (U32 y = 0; y < 13; ++y) {
-			for (U32 x = 0; x < 17; ++x) {
-				U8 tile_sprite_lookup = level[y*17 + x];
+		for (U32 y = 0; y < LEVEL_HEIGHT; ++y) {
+			for (U32 x = 0; x < LEVEL_WIDTH; ++x) {
 
-				Rectangle rect = {
-					.x = (tile_sprite_lookup % 7) * 16,
-					.y = (tile_sprite_lookup / 7) * 16,
-					.width = 16,
-					.height = 16,
-				};
+				{
+					// render tile
+					U8 tile_sprite_lookup = level[y*LEVEL_WIDTH + x];
+					Rectangle rect = {
+						.x = (tile_sprite_lookup % 7) * 16,
+						.y = (tile_sprite_lookup / 7) * 16,
+						.width = 16,
+						.height = 16,
+					};
+					BlitBitmapRectangleToFramebuffer(frame_buffer, (S32)x*16-8, (S32)y*16-8, tiles, rect);
+				}
 
-				BlitBitmapRectangleToFramebuffer(frame_buffer, (S32)x*16-8, (S32)y*16-8, tiles, rect);
+				{
+					// render bomb (if one exists at this tile
+					U8 remaining_bomb_time = bomb_counters[y*LEVEL_WIDTH + x];
+					Rectangle rect = {
+						.x = 0,
+						.y = 0,
+						.width = 16,
+						.height = 16,
+					};
+					if (remaining_bomb_time > 0) {
+						BlitBitmapRectangleToFramebuffer(frame_buffer, (S32)x*16-8, (S32)y*16-8, items, rect);
+					}
+				}
 			}
 		}
 
