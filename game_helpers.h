@@ -18,14 +18,6 @@ Bitmap LoadBitmap(const char *path) {
 	return result;
 }
 
-typedef enum Direction {
-	DIRECTION_DOWN,
-	DIRECTION_UP,
-	DIRECTION_LEFT,
-	DIRECTION_RIGHT,
-	DIRECTION_COUNT,
-} Direction;
-
 typedef struct Rectangle {
 	S32 x, y;
 	U32 width, height;
@@ -405,14 +397,6 @@ static inline S32 PixelToTile(S32 pixel_coordinate) {
 	result += 1;
 	return result;
 }
-
-typedef struct {
-	S32 x, y;
-	Direction animation_direction;
-	U32 animation_tick;
-	U32 animation_index;
-	S32 previous_x_movement, previous_y_movement;
-} Player;
 
 static void UpdatePlayerAnimationTick(Player *p, S32 x_movement, S32 y_movement, U32 animation_frame_delay, WalkAnimation walk_animations[4]) {
 

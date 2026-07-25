@@ -9,7 +9,7 @@
 
 #include "game.h"
 
-static U32 *g_framebuffer;
+static U32 g_framebuffer[FRAME_BUFFER_WIDTH*FRAME_BUFFER_HEIGHT];
 
 EM_JS(void, js_init_canvas, (int width, int height), {
 	canvas.width = width;
@@ -102,10 +102,13 @@ U32 ReadGamepadState(int gamepad_idx) {
 	return button_flags;
 }
 
-static bool RequestAnimationFrameCallback(F64 time, void *data) {
+static GameState game_states[2];
+static U32 current_state_index = 1;
+
+static EM_BOOL RequestAnimationFrameCallback(F64 time, void *data) {
 	if (g_last_time == 0) {
 		g_last_time = time;
-		return true;
+		return EM_TRUE;
 	}
 
 	F64 delta = time - g_last_time;
@@ -147,7 +150,12 @@ static bool RequestAnimationFrameCallback(F64 time, void *data) {
 			do {
 				g_remaining_time -= update_rate;
 				Bool should_render = g_remaining_time < update_rate;
-				GameFrame(g_framebuffer, g_frame_index, inputs, gamepads_connected + 1, should_render);
+
+				const GameState * const previous_state = &game_states[!current_state_index];
+				GameState *next_state = &game_states[current_state_index];
+				GameFrame((U32 *)g_framebuffer, previous_state, next_state, inputs, gamepads_connected + 1, should_render);
+
+				current_state_index = !current_state_index;
 
 				for (U32 i = 0; i < 4; ++i) {
 					inputs[i].previous_button_state = inputs[i].current_button_state;
@@ -160,14 +168,13 @@ static bool RequestAnimationFrameCallback(F64 time, void *data) {
 		js_blit((void *)g_framebuffer, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
 	}
 
-	return true;
+	return EM_TRUE;
 }
 
 int main(void) {
-	g_framebuffer = (U32 *)malloc(FRAME_BUFFER_WIDTH*FRAME_BUFFER_HEIGHT * 4);
 	js_init_canvas(FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
 
-	GameInit();
+	GameInit(&game_states[!current_state_index]);
 
 	emscripten_request_animation_frame_loop(RequestAnimationFrameCallback, NULL);
 	emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, NULL, EM_TRUE, HandleKey);

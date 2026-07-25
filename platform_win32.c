@@ -30,6 +30,9 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 	return DefWindowProc(hwnd, msg, wp, lp);
 }
 
+static GameState game_states[2];
+static U32 current_state_index = 1;
+
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow) {
 
 	WNDCLASSA window_class = {0};
@@ -81,7 +84,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 	SwapBuffers(hdc);
 	ShowWindow(hwnd, SW_SHOW);
 
-	GameInit();
+	GameInit(&game_states[!current_state_index]);
 
 	LARGE_INTEGER frequency = {0}, counter1 = {0};
 	QueryPerformanceFrequency(&frequency);
@@ -166,7 +169,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 				do {
 					remaining_time -= update_delta;
 					Bool should_render = remaining_time < update_delta;
-					GameFrame(g_framebuffer, frame_index, g_player_inputs, controllers_connected + 1, should_render);
+
+					const GameState * const previous_state = &game_states[!current_state_index];
+					GameState *next_state = &game_states[current_state_index];
+					GameFrame(g_framebuffer, previous_state, next_state, g_player_inputs, controllers_connected + 1, should_render);
+
+					current_state_index = !current_state_index;
+
 					for (U32 i = 0; i < MAX_PLAYER_COUNT; ++i) {
 						g_player_inputs[i].previous_button_state = g_player_inputs[i].current_button_state;
 					}

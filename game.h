@@ -26,7 +26,33 @@ typedef _Bool Bool;
 
 #define ArrayLength(arr) (sizeof(arr) / sizeof(arr[0]))
 
-void GameInit(void);
+#define LEVEL_HEIGHT 13
+#define LEVEL_WIDTH 17
+#define BOMB_TIME (3*60)
+#define EXPLOSION_TIME (60/2)
+
+typedef enum Direction {
+	DIRECTION_DOWN,
+	DIRECTION_UP,
+	DIRECTION_LEFT,
+	DIRECTION_RIGHT,
+	DIRECTION_COUNT,
+} Direction;
+
+typedef struct {
+	S32 x, y;
+	Direction animation_direction;
+	U32 animation_tick;
+	U32 animation_index;
+	S32 previous_x_movement, previous_y_movement;
+} Player;
+
+typedef struct GameState {
+	Player players[4];
+	U32 bomb_counters[LEVEL_HEIGHT*LEVEL_WIDTH];
+} GameState;
+
+void GameInit(GameState *initial_state);
 
 enum Button {
 	BUTTON_UP = 1u << 0u,
@@ -69,7 +95,7 @@ static inline Bool WasButtonReleased(GameInput input, enum Button button) {
 	return button_previously_down && button_currently_up;
 }
 
-void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs, U32 player_count, Bool should_render);
+void GameFrame(U32 *frame_buffer, const GameState * const previous_state, GameState *next_state, GameInput *player_inputs, U32 player_count, Bool should_render);
 
 static void Print(const char *fmt, ...);
 
