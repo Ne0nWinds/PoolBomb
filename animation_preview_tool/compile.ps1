@@ -76,7 +76,7 @@ if ($watch) {
 	while ($true) {
 		$change = $watcher.WaitForChanged([System.IO.WatcherChangeTypes]::Changed, 500)
 		if ($change.TimedOut) { continue }
-		if ($change.Name -notmatch '\.(c|h)$') { continue }
+		if ($change.Name -notmatch '\.(c|h|html)$') { continue }
 
 		$stamp = Get-Date -Format "HH:mm:ss"
 		Write-Host ""

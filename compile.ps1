@@ -88,7 +88,7 @@ if ($watch) {
 	$watcher.NotifyFilter = [System.IO.NotifyFilters]::LastWrite -bor [System.IO.NotifyFilters]::FileName
 	$watcher.EnableRaisingEvents = $true
 
-	Write-Host "Watching .c/.h files for changes. Press Ctrl+C to stop." -ForegroundColor Cyan
+	Write-Host "Watching files for changes. Press Ctrl+C to stop." -ForegroundColor Cyan
 	while ($true) {
 		$change = $watcher.WaitForChanged([System.IO.WatcherChangeTypes]::Changed, 500)
 		if ($change.TimedOut) { continue }

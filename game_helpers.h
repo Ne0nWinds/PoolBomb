@@ -103,6 +103,36 @@ static void BlitBitmapRectangleToFramebuffer(U32 *dst_frame_buffer, S32 dst_x, S
 	}
 }
 
+static void BlitBitmapRectangleToFramebufferWithOpacity(U32 *dst_frame_buffer, S32 dst_x, S32 dst_y, Bitmap src_bitmap, Rectangle src_rectangle, F32 opacity) {
+
+	Rectangle frame_buffer = { 0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT };
+	Rectangle dst_rectangle = { dst_x, dst_y, src_rectangle.width, src_rectangle.height };
+	Rectangle clipped = RectangleIntersection(frame_buffer, dst_rectangle);
+
+	const U32 height = clipped.height;
+	const U32 width = clipped.width;
+
+	S32 clip_src_x = src_rectangle.x + clipped.x - dst_x;
+	S32 clip_src_y = src_rectangle.y + clipped.y - dst_y;
+
+	for (U32 y = 0; y < height; ++y) {
+		U32 *dst_row = &dst_frame_buffer[(clipped.y + y) * FRAME_BUFFER_WIDTH + clipped.x];
+		U32 *src_row = &src_bitmap.pixels[(clip_src_y + y)*src_bitmap.width + clip_src_x];
+
+		for (U32 x = 0; x < width; ++x) {
+			U32 dst_pixel = dst_row[x];
+			U32 src_pixel = src_row[x];
+			U32 alpha = src_pixel >> 24u;
+			if (alpha != 0) {
+				U32 r = (U32)((dst_pixel&0xFF)*(1.0-opacity) + (src_pixel&0xFF)*opacity);
+				U32 g = (U32)(((dst_pixel&0xFF00)>>8)*(1.0-opacity) + ((src_pixel&0xFF00)>>8)*opacity);
+				U32 b = (U32)(((dst_pixel&0xFF0000)>>16)*(1.0-opacity) + ((src_pixel&0xFF0000)>>16)*opacity);
+				dst_row[x] = r | (g << 8) | (b << 16) | 0xFF000000;
+			}
+		}
+	}
+}
+
 static void BlitColorRectangleToFramebuffer(U32 *dst_frame_buffer, Rectangle dst_rect, U32 color) {
 	Rectangle frame_buffer = { 0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT };
 	Rectangle clipped = RectangleIntersection(frame_buffer, dst_rect);

@@ -46,10 +46,41 @@
 			flex-direction: column;
 			gap: 8px;
 		}
-		.row > label {
+		.row > label, .toggles > legend {
 			font-size: 13px;
 			font-weight: 600;
 			color: #bbb;
+		}
+		.toggles {
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
+			margin: 0;
+			padding: 0;
+			border: 0;
+		}
+		.toggles > legend {
+			padding: 0;
+			margin-bottom: 8px;
+		}
+		.toggle {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			width: fit-content;
+			font-size: 14px;
+			color: #ddd;
+			cursor: pointer;
+		}
+		.toggle > input[type="checkbox"] {
+			width: 16px;
+			height: 16px;
+			margin: 0;
+			accent-color: #6cf;
+			cursor: pointer;
+		}
+		.toggle > label {
+			cursor: pointer;
 		}
 		select {
 			background: #222;
@@ -62,12 +93,13 @@
 		input[type="range"] {
 			width: 100%;
 			margin: 0;
-			direction: rtl;
 			-webkit-appearance: none;
 			appearance: none;
 			background: transparent;
 		}
 		input[type="range"]:focus { outline: none; }
+		/* The speed scale reads 6..1, so only that track is reversed to match its ticks. */
+		#speed-slider { direction: rtl; }
 		input[type="range"]::-webkit-slider-runnable-track {
 			height: 4px;
 			background: #444;
@@ -95,6 +127,16 @@
 			border-radius: 50%;
 			background: #6cf;
 			cursor: pointer;
+		}
+		input[type="range"]:disabled::-webkit-slider-thumb { cursor: default; }
+		input[type="range"]:disabled::-moz-range-thumb { cursor: default; }
+		/* A control that only applies while its toggle is on: indented to line up
+		   with the toggle's text, and dimmed as one unit while the toggle is off. */
+		.toggle-detail {
+			padding-left: 24px;
+		}
+		.toggle-detail:has(input:disabled) {
+			opacity: 0.4;
 		}
 		/* The thumb centre travels inset by half its width (8px) at each end,
 		   so the tick track is inset to match and ticks are absolutely placed. */
@@ -192,6 +234,18 @@
 			<div class="readout" id="speed-readout"></div>
 		</div>
 
+		<fieldset class="toggles">
+			<legend>Settings</legend>
+			<label class="toggle">
+				<input type="checkbox" id="water-displacement-overlay">
+				Overlay water displacement mask
+			</label>
+			<div class="row toggle-detail">
+				<input type="range" id="overlay-opacity-slider" min="0" max="1" step="0.01" value="1" disabled>
+				<div class="readout" id="overlay-opacity-readout"></div>
+			</div>
+		</fieldset>
+
 		<div class="hint">
 			Drag a PNG spriteset onto the page to hot-reload it.
 		</div>
@@ -205,6 +259,9 @@
 		const characterSelect = document.getElementById('character-select');
 		const animationSelect = document.getElementById('animation-select');
 		const spaceBarHint = document.getElementById('space-bar-animation-hint');
+		const waterDisplacementToggle = document.getElementById('water-displacement-overlay');
+		const overlayOpacitySlider = document.getElementById('overlay-opacity-slider');
+		const overlayOpacityReadout = document.getElementById('overlay-opacity-readout');
 
 		window.onSpritesetLoaded = function (count) {
 			const previous = parseInt(characterSelect.value || '0', 10);
@@ -222,7 +279,27 @@
 			}
 			applySpeed();
 			setAnimationMode();
+			setRenderWaterDisplacement();
+			setOverlayOpacity();
 		};
+
+		function setRenderWaterDisplacement() {
+			const checked = !!waterDisplacementToggle.checked;
+			overlayOpacitySlider.disabled = !checked;
+			if (typeof Module !== 'undefined' && Module._SetRenderWaterDisplacementMask) {
+				Module._SetRenderWaterDisplacementMask(checked);
+			}
+		}
+		waterDisplacementToggle.onchange = setRenderWaterDisplacement;
+
+		function setOverlayOpacity() {
+			const opacity = parseFloat(overlayOpacitySlider.value);
+			overlayOpacityReadout.textContent = 'opacity ' + opacity.toFixed(2);
+			if (typeof Module !== 'undefined' && Module._SetWaterDisplacementMaskOpacity) {
+				Module._SetWaterDisplacementMaskOpacity(opacity);
+			}
+		}
+		overlayOpacitySlider.addEventListener('input', setOverlayOpacity);
 
 		function applySpeed() {
 			const frameDelay = parseInt(speedSlider.value, 10);

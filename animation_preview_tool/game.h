@@ -48,6 +48,8 @@ typedef struct GameInput {
 	U32 previous_button_state;
 	U32 animation_speed;
 	U32 character_index;
+	F32 water_displacement_opacity;
+	Bool render_water_displacement;
 } GameInput;
 
 static inline Bool IsButtonDown(GameInput input, enum Button button) {

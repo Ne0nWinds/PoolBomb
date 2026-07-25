@@ -40,6 +40,9 @@ static U32 g_previous_button_state = 0;
 static U32 g_ui_animation_speed = 4;
 static U32 g_ui_character_index = 0;
 
+static Bool g_ui_render_water_displacement_mask = 0;
+static F32 g_ui_water_displacement_opacity = 1.0f;
+
 EMSCRIPTEN_KEEPALIVE void SetAnimationSpeed(U32 frame_delay) {
 	if (frame_delay < 1) frame_delay = 1;
 	if (frame_delay > 6) frame_delay = 6;
@@ -49,6 +52,14 @@ EMSCRIPTEN_KEEPALIVE void SetAnimationSpeed(U32 frame_delay) {
 
 EMSCRIPTEN_KEEPALIVE void SetCharacterIndex(U32 index) {
 	g_ui_character_index = index;
+}
+
+EMSCRIPTEN_KEEPALIVE void SetRenderWaterDisplacementMask(U32 enabled) {
+	g_ui_render_water_displacement_mask = (enabled != 0);
+}
+
+EMSCRIPTEN_KEEPALIVE void SetWaterDisplacementMaskOpacity(F32 opacity) {
+	g_ui_water_displacement_opacity = opacity;
 }
 
 static EM_BOOL OnKeydown(int t, const EmscriptenKeyboardEvent *e, void *_) {
@@ -166,6 +177,8 @@ static bool RequestAnimationFrameCallback(F64 time, void *data) {
 		input.previous_button_state = g_previous_button_state;
 		input.animation_speed = g_ui_animation_speed;
 		input.character_index = g_ui_character_index;
+		input.render_water_displacement = g_ui_render_water_displacement_mask;
+		input.water_displacement_opacity = g_ui_water_displacement_opacity;
 
 		g_previous_button_state = current_button_state;
 		g_gamepad_state = 0;

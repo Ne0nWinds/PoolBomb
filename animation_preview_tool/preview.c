@@ -24,7 +24,7 @@ static U32 CharacterCount(void) {
 	if (g_spriteset.pixels == 0) {
 		return 0;
 	}
-	U32 count = g_spriteset.height / 48;
+	U32 count = g_spriteset.height / 48 - 1;
 	return count == 0 ? 1 : count;
 }
 
@@ -37,7 +37,7 @@ EM_JS(void, js_on_spriteset_loaded, (int character_count), {
 void GameInit(U32 *frame_buffer, U32 *screen_width, U32 *screen_height) {
 	(void)frame_buffer;
 
-	g_spriteset = LoadBitmap("assets/spriteset.png");
+	g_spriteset = LoadBitmap("assets/spriteset2.png");
 
 	SetupWalkAnimations(g_walk_animations, (U32 *)g_animation_x_offsets);
 	SetupDeathAnimation(&g_death_animation, (U32 *)g_death_animation_x_offset);
@@ -59,8 +59,8 @@ void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs
 
 	U32 character_count = CharacterCount();
 	U32 character_index = input.character_index;
-	if (character_count != 0 && character_index >= character_count) {
-		character_index = character_count - 1;
+	if (character_index == 1) {
+		character_index += 1;
 	}
 
 	for (U32 i = 0; i < FRAME_BUFFER_WIDTH * FRAME_BUFFER_HEIGHT; ++i) {
@@ -115,6 +115,16 @@ void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs
 				.height = 32
 			};
 			BlitBitmapRectangleToFramebuffer(frame_buffer, 0, 0, g_spriteset, sprite_rect);
+
+			if (input.render_water_displacement) {
+				Rectangle sprite_rect = {
+					.x = walk_animation.x_offsets[player.animation_index],
+					.y = 16 + 48*(1),
+					.width = 32,
+					.height = 32
+				};
+				BlitBitmapRectangleToFramebufferWithOpacity(frame_buffer, 0, 0, g_spriteset, sprite_rect, input.water_displacement_opacity);
+			}
 		}
 
 	} else if (g_animation_mode == ANIM_MODE_WALK_DEATH) {
@@ -134,7 +144,17 @@ void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs
 			player.animation_tick = state.global_animation_tick;
 
 			if (should_render) {
-				DisplayAnimationFrame(frame_buffer, g_death_animation.x_offsets, g_spriteset, character_index, animation_render_index, 0, 0);
+				U32 *x_offsets = g_death_animation.x_offsets;
+				DisplayAnimationFrame(frame_buffer, x_offsets, g_spriteset, character_index, animation_render_index, 0, 0);
+				if (input.render_water_displacement) {
+					Rectangle sprite_rect = {
+						.x = x_offsets[animation_render_index],
+						.y = 16 + 48*(1),
+						.width = 32,
+						.height = 32
+					};
+					BlitBitmapRectangleToFramebufferWithOpacity(frame_buffer, 0, 0, g_spriteset, sprite_rect, input.water_displacement_opacity);
+				}
 			}
 
 			if (state.animation_will_end_next_tick) {
@@ -144,7 +164,18 @@ void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs
 		} else if (animation_end_ticks < animation_end_tick_delay) {
 			animation_end_ticks += 1;
 		} else if (should_render) {
-			DisplayAnimationFrame(frame_buffer, g_walk_animations[DIRECTION_DOWN].x_offsets, g_spriteset, character_index, 0, 0, 0);
+			U32 *x_offsets = g_walk_animations[DIRECTION_DOWN].x_offsets;
+			DisplayAnimationFrame(frame_buffer, x_offsets, g_spriteset, character_index, 0, 0, 0);
+
+			if (input.render_water_displacement) {
+				Rectangle sprite_rect = {
+					.x = x_offsets[0],
+					.y = 16 + 48*(1),
+					.width = 32,
+					.height = 32
+				};
+				BlitBitmapRectangleToFramebufferWithOpacity(frame_buffer, 0, 0, g_spriteset, sprite_rect, input.water_displacement_opacity);
+			}
 		}
 
 	} else {
@@ -173,7 +204,18 @@ void GameFrame(U32 *frame_buffer, uint64_t frame_index, GameInput *player_inputs
 		AnimationState state = AdvanceBasicAnimation(basic_animation, input.animation_speed, player.animation_tick);
 		player.animation_tick = state.global_animation_tick;
 
+		U32 *x_offsets = basic_animation.x_offsets;
 		DisplayAnimationFrame(frame_buffer, basic_animation.x_offsets, g_spriteset, character_index, state.animation_render_index, 0, 0);
+
+		if (input.render_water_displacement) {
+			Rectangle sprite_rect = {
+				.x = x_offsets[state.animation_render_index],
+				.y = 16 + 48*(1),
+				.width = 32,
+				.height = 32
+			};
+			BlitBitmapRectangleToFramebufferWithOpacity(frame_buffer, 0, 0, g_spriteset, sprite_rect, input.water_displacement_opacity);
+		}
 	}
 }
 
